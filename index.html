@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=nsimsun1" />
+  <link rel="stylesheet" href="/css/style.css?v=npdetail1" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%231DB954'/%3E%3Cpath d='M30 62c12-4 24-6 40-4' stroke='black' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Cpath d='M28 48c15-5 30-7 46-4' stroke='black' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Cpath d='M26 35c18-6 36-8 52-4' stroke='black' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -140,26 +140,22 @@
           </div>
         </section>
 
-        <section class="section lyrics-section">
-          <h2>歌词</h2>
-          <div class="lyrics" id="lyricsBox">
-            <div class="lyrics-inner" id="lyricsInner">
-              <p class="muted">播放后显示歌词</p>
-            </div>
-          </div>
-        </section>
+
       </main>
     </div>
   </div>
 
   <footer class="player" id="playerBar">
-    <div class="player-left">
+    <button type="button" class="player-left player-open-detail" id="btnOpenDetail" title="打开播放详情" aria-label="打开播放详情">
       <img id="miniCover" class="player-cover" alt="" />
       <div class="player-meta">
         <div id="miniTitle" class="player-title">未在播放</div>
         <div id="miniArtist" class="player-artist">—</div>
       </div>
-    </div>
+      <span class="open-chevron" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7.4 15.4 6 14l6-6 6 6-1.4 1.4L12 10.8z"/></svg>
+      </span>
+    </button>
 
     <div class="player-center">
       <div class="player-controls">
@@ -200,8 +196,78 @@
     </div>
   </footer>
 
+
+  <!-- Apple Music–style now playing detail -->
+  <div class="np-sheet" id="npSheet" hidden aria-hidden="true">
+    <div class="np-sheet-bg" id="npSheetBg" aria-hidden="true"></div>
+    <div class="np-sheet-scrim" aria-hidden="true"></div>
+
+    <header class="np-sheet-top">
+      <button type="button" class="np-icon-btn" id="btnCloseDetail" title="收起" aria-label="收起详情">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>
+      </button>
+      <div class="np-sheet-top-meta">
+        <span class="np-top-label">正在播放</span>
+        <span class="np-top-source" id="npSheetSource">—</span>
+      </div>
+      <button type="button" class="np-icon-btn" id="btnSheetQueue" title="播放列表" aria-label="播放列表">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h10v2H4v-2z"/></svg>
+      </button>
+    </header>
+
+    <div class="np-sheet-body">
+      <section class="np-stage">
+        <div class="np-cover-wrap">
+          <img id="npSheetCover" class="np-cover" alt="封面" src="" />
+        </div>
+        <div class="np-info">
+          <h2 class="np-title" id="npSheetTitle">未在播放</h2>
+          <p class="np-artist" id="npSheetArtist">选择一首歌曲开始聆听</p>
+        </div>
+
+        <div class="np-timeline">
+          <input type="range" id="npSeekBar" min="0" max="1000" value="0" aria-label="进度" />
+          <div class="np-times">
+            <span id="npCurTime">0:00</span>
+            <span id="npDurTime">0:00</span>
+          </div>
+        </div>
+
+        <div class="np-controls">
+          <button type="button" class="np-ctrl" id="npBtnMode" title="顺序播放" aria-label="播放模式">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+          </button>
+          <button type="button" class="np-ctrl" id="npBtnPrev" title="上一首" aria-label="上一首">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button type="button" class="np-ctrl play" id="npBtnPlay" title="播放" aria-label="播放" data-playing="false">
+            <svg class="icon-play" viewBox="0 0 24 24" width="30" height="30" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="icon-pause" viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+          </button>
+          <button type="button" class="np-ctrl" id="npBtnNext" title="下一首" aria-label="下一首">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+          </button>
+          <button type="button" class="np-ctrl" id="npBtnVolHint" title="音量请用底部栏调节" aria-label="音量" disabled>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <section class="np-lyrics-pane" aria-label="歌词">
+        <div class="np-lyrics-head">
+          <h3>歌词</h3>
+          <span class="np-lyrics-hint" id="npLyricsHint">随播放自动滚动</span>
+        </div>
+        <div class="np-lyrics" id="lyricsBox">
+          <div class="np-lyrics-inner lyrics-inner" id="lyricsInner">
+            <p class="muted center">播放后显示歌词</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
   <div class="toast" id="toast" hidden></div>
   <audio id="audio" preload="metadata"></audio>
-  <script src="/js/app.js?v=nsimsun1" type="module"></script>
+  <script src="/js/app.js?v=npdetail1" type="module"></script>
 </body>
 </html>
