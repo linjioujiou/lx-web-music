@@ -1,0 +1,15 @@
+node_modules/
+.wrangler/
+.wrangler-logs/
+.config/
+.cache/
+.dist/
+dist/
+.env
+.env.*
+.DS_Store
+*.log
+*.pid
+*.err
+npm-debug.log*
+.DS_Store
