@@ -4,7 +4,7 @@
  */
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const PLACEHOLDER_COVER =
   "data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'300\'%3E%3Cdefs%3E%3ClinearGradient id=\'g\' x1=\'0\' y1=\'0\' x2=\'1\' y2=\'1\'%3E%3Cstop stop-color=\'%231a1f2e\'/%3E%3Cstop offset=\'1\' stop-color=\'%23252c42\'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill=\'url(%23g)\' width=\'300\' height=\'300\'/%3E%3Ccircle cx=\'150\' cy=\'150\' r=\'70\' fill=\'none\' stroke=\'%23636b84\' stroke-width=\'2\' opacity=\'.5\'/%3E%3Ctext x=\'50%25\' y=\'52%25\' fill=\'%238b93a7\' text-anchor=\'middle\' dy=\'.3em\' font-size=\'42\' font-family=\'sans-serif\'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";
@@ -218,7 +218,7 @@ function applySourceHighlight(source) {
   const label = SOURCE_LABELS[src] || src;
   const classes = ['src-wy', 'src-tx', 'src-kw', 'src-kg', 'src-mg'];
   const setClass = (el) => {
-    if (!el) return;
+    if (!el || !el.classList) return;
     classes.forEach((c) => el.classList.remove(c));
     el.classList.add('src-' + src);
   };
@@ -230,15 +230,13 @@ function applySourceHighlight(source) {
     els.sourceHint.textContent = '当前：' + String(label).replace(/音乐/g, '') + ' · 点击切换平台后重新搜索';
   }
   if (els.tabs) {
-    $('.chip-tab', els.tabs).forEach((t) => {
+    $$('.chip-tab', els.tabs).forEach((t) => {
       const on = t.dataset.source === src;
       t.classList.toggle('active', on);
       t.setAttribute('aria-selected', on ? 'true' : 'false');
     });
   }
 }
-
-
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -635,13 +633,12 @@ function bindEvents() {
     });
   }
 
-
-  els.form.addEventListener('submit', (e) => {
+  els.form && els.form.addEventListener('submit', (e) => {
     e.preventDefault();
     doSearch(els.input.value);
   });
 
-  els.tabs.addEventListener('click', (e) => {
+  if (els.tabs) els.tabs.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-source]');
     if (!btn) return;
     const next = btn.dataset.source;
