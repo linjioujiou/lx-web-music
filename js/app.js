@@ -460,17 +460,37 @@ async function playCurrent() {
 }
 
 function updatePlayUI() {
-  const playIcon = els.btnPlay && els.btnPlay.querySelector('.icon-play');
-  const pauseIcon = els.btnPlay && els.btnPlay.querySelector('.icon-pause');
-  if (playIcon && pauseIcon) {
-    playIcon.hidden = state.playing;
-    pauseIcon.hidden = !state.playing;
-  }
-  if (els.vinyl) els.vinyl.classList.toggle('playing', state.playing);
-  if (els.miniEq) els.miniEq.classList.toggle('on', state.playing);
-  if (els.btnPlay) els.btnPlay.setAttribute('aria-label', state.playing ? '暂停' : '播放');
+  const playing = !!(audio && !audio.paused && audio.src && !audio.ended);
+  state.playing = playing;
+
+  const setIconPair = (root, playSel, pauseSel) => {
+    if (!root) return;
+    root.classList.toggle('is-playing', playing);
+    root.dataset.playing = playing ? 'true' : 'false';
+    root.setAttribute('aria-label', playing ? '暂停' : '播放');
+    root.setAttribute('title', playing ? '暂停' : '播放');
+    const playIcon = root.querySelector(playSel);
+    const pauseIcon = root.querySelector(pauseSel);
+    if (playIcon) {
+      playIcon.hidden = playing;
+      playIcon.style.setProperty('display', playing ? 'none' : 'block', 'important');
+    }
+    if (pauseIcon) {
+      pauseIcon.hidden = !playing;
+      pauseIcon.style.setProperty('display', playing ? 'block' : 'none', 'important');
+    }
+  };
+
+  setIconPair(els.btnPlay, '.icon-play', '.icon-pause');
+  if (els.vinyl) els.vinyl.classList.toggle('playing', playing);
+  if (els.miniEq) els.miniEq.classList.toggle('on', playing);
+
   const heroPlay = document.getElementById('btnHeroPlay');
-  if (heroPlay) heroPlay.textContent = state.playing ? '暂停' : '播放';
+  setIconPair(heroPlay, '.hero-play', '.hero-pause');
+  if (heroPlay) {
+    const text = heroPlay.querySelector('.hero-play-text');
+    if (text) text.textContent = playing ? '暂停' : '播放';
+  }
 }
 
 function nextIndex() {
@@ -587,13 +607,21 @@ async function doSearch(keyword) {
 function bindEvents() {
   const heroPlay = document.getElementById('btnHeroPlay');
   if (heroPlay) {
-    heroPlay.addEventListener('click', () => {
+    heroPlay.addEventListener('click', async () => {
       if (state.queue.length) {
         if (state.currentIndex < 0) state.currentIndex = 0;
         if (audio.src && !audio.paused) {
           audio.pause();
+          state.playing = false;
+          updatePlayUI();
         } else if (audio.src) {
-          audio.play();
+          try {
+            await audio.play();
+            state.playing = true;
+            updatePlayUI();
+          } catch (err) {
+            toast(err.message || '播放失败');
+          }
         } else {
           playCurrent();
         }
@@ -664,14 +692,17 @@ function bindEvents() {
       try {
         await audio.play();
         state.playing = true;
-      } catch {
-        toast('播放失败');
+        updatePlayUI();
+      } catch (err) {
+        toast(err.message || '播放失败');
+        state.playing = false;
+        updatePlayUI();
       }
     } else {
       audio.pause();
       state.playing = false;
+      updatePlayUI();
     }
-    updatePlayUI();
   });
 
   els.btnNext.addEventListener('click', playNext);
@@ -782,6 +813,7 @@ function init() {
   renderQueue();
   if (state.queue[state.currentIndex]) updateNowPlaying(state.queue[state.currentIndex]);
   bindEvents();
+  updatePlayUI();
   if (!state.songs.length) els.empty.hidden = false;
 }
 

@@ -477,8 +477,43 @@ img { display: block; max-width: 100%; }
 .pbtn:hover { color: var(--text); }
 .pbtn.play {
   width: 36px; height: 36px; background: #fff; color: #000;
+  position: relative;
+  display: grid;
+  place-items: center;
 }
 .pbtn.play:hover { transform: scale(1.06); color: #000; background: #fff; }
+.pbtn.play .icon-play,
+.pbtn.play .icon-pause {
+  grid-area: 1 / 1;
+  place-self: center;
+  pointer-events: none;
+  margin: 0;
+}
+/* 未播放：只显示三角形；播放中：只显示暂停 */
+.pbtn.play .icon-play { display: block !important; visibility: visible !important; opacity: 1; }
+.pbtn.play .icon-pause { display: none !important; visibility: hidden !important; opacity: 0; }
+.pbtn.play.is-playing .icon-play,
+.pbtn.play[data-playing="true"] .icon-play {
+  display: none !important; visibility: hidden !important; opacity: 0;
+}
+.pbtn.play.is-playing .icon-pause,
+.pbtn.play[data-playing="true"] .icon-pause {
+  display: block !important; visibility: visible !important; opacity: 1;
+}
+.pbtn.play .icon-play[hidden],
+.pbtn.play .icon-pause[hidden] { display: none !important; visibility: hidden !important; opacity: 0 !important; }
+
+.btn-green {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-green .hero-ico { flex-shrink: 0; }
+.btn-green .hero-play { display: inline-block; }
+.btn-green .hero-pause { display: none; }
+.btn-green.is-playing .hero-play,
+.btn-green[data-playing="true"] .hero-play { display: none !important; }
+.btn-green.is-playing .hero-pause,
+.btn-green[data-playing="true"] .hero-pause { display: inline-block !important; }
+
 .mini-eq {
   display: none; align-items: flex-end; gap: 2px; height: 12px; width: 14px;
 }
