@@ -20,7 +20,7 @@
   --radius-lg: 12px;
   --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", "DM Sans", system-ui, -apple-system, sans-serif;
   --font-display: "NSimSun", "新宋体", "SimSun", "Songti SC", "STSong", "Noto Serif CJK SC", serif;
-  --font: var(--font-ui);
+  --font: var(--font-display);
   --ease: cubic-bezier(.3,0,.4,1);
   --shadow: 0 8px 24px rgba(0,0,0,.5);
 }
@@ -28,7 +28,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; height: 100%;
-  background: var(--bg); color: var(--text); font-family: var(--font-ui);
+  background: var(--bg); color: var(--text); font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -123,25 +123,31 @@ img { display: block; max-width: 100%; }
 }
 .chip {
   border: 0; background: transparent; color: #b3b3b3; cursor: pointer;
-  font-family: var(--font-ui); font-size: .8rem; font-weight: 600;
+  font-size: .8rem; font-weight: 600;
   line-height: 1.2; letter-spacing: 0; padding: 5px 10px; border-radius: 999px;
   white-space: nowrap;
 }
 .chip:hover { color: var(--text); background: rgba(255,255,255,.1); }
 .chip-rm {
-  color: #cfcfcf !important;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.1);
-  font-size: .78rem !important;
-  font-weight: 650 !important;
-  padding: 5px 11px !important;
-  min-width: 3.2em;
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif !important;
+  color: #f2f2f2 !important;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.14);
+  font-size: .8rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.25 !important;
+  padding: 5px 12px !important;
+  min-width: 3.4em;
   text-align: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 .chip-rm:hover {
   color: #fff !important;
-  background: rgba(255,80,80,.22);
-  border-color: rgba(255,120,120,.35);
+  background: rgba(255,80,80,.24);
+  border-color: rgba(255,120,120,.4);
 }
 .btn-ghost {
   margin-top: 10px; border: 1px solid #727272; background: transparent; color: var(--text);
