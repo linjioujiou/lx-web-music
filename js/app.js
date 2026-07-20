@@ -213,6 +213,33 @@ function setLoading(on) {
   }
 }
 
+function applySourceHighlight(source) {
+  const src = source || state.source || 'tx';
+  const label = SOURCE_LABELS[src] || src;
+  const classes = ['src-wy', 'src-tx', 'src-kw', 'src-kg', 'src-mg'];
+  const setClass = (el) => {
+    if (!el) return;
+    classes.forEach((c) => el.classList.remove(c));
+    el.classList.add('src-' + src);
+  };
+  setClass(els.sourcePill);
+  setClass(els.heroSourcePill);
+  if (els.sourcePill) els.sourcePill.textContent = label;
+  if (els.heroSourcePill) els.heroSourcePill.textContent = label;
+  if (els.sourceHint) {
+    els.sourceHint.textContent = '当前：' + String(label).replace(/音乐/g, '') + ' · 点击切换平台后重新搜索';
+  }
+  if (els.tabs) {
+    $('.chip-tab', els.tabs).forEach((t) => {
+      const on = t.dataset.source === src;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+}
+
+
+
 function escapeHtml(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -536,10 +563,11 @@ async function doSearch(keyword) {
     state.songs = data.songs || [];
     els.resultsTitle.textContent = '搜索结果';
     els.resultsMeta.textContent = (data.sourceLabel || SOURCE_LABELS[state.source]) + ' ·「' + q + '」· ' + state.songs.length + ' 首';
-    const resultLabel = data.sourceLabel || SOURCE_LABELS[state.source] || state.source;
-    if (els.sourcePill) els.sourcePill.textContent = resultLabel;
-    if (els.heroSourcePill) els.heroSourcePill.textContent = resultLabel;
-    if (els.sourceHint) els.sourceHint.textContent = '当前：' + String(resultLabel).replace(/音乐/g, '') + ' · 共 ' + (state.songs.length || 0) + ' 首';
+    applySourceHighlight(state.source);
+    if (els.sourceHint) {
+      const resultLabel = data.sourceLabel || SOURCE_LABELS[state.source] || state.source;
+      els.sourceHint.textContent = '当前：' + String(resultLabel).replace(/音乐/g, '') + ' · 共 ' + (state.songs.length || 0) + ' 首';
+    }
     renderSongs();
     if (!state.songs.length) {
       els.empty.hidden = false;
@@ -622,16 +650,8 @@ function bindEvents() {
       return;
     }
     state.source = next;
-    $('.chip-tab', els.tabs).forEach((t) => {
-      const on = t === btn;
-      t.classList.toggle('active', on);
-      t.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    const label = SOURCE_LABELS[state.source] || state.source;
-    if (els.sourcePill) els.sourcePill.textContent = label;
-    if (els.heroSourcePill) els.heroSourcePill.textContent = label;
-    if (els.sourceHint) els.sourceHint.textContent = '当前：' + label.replace(/音乐/g, '') + ' · 点击切换平台后重新搜索';
-    toast('已切换到 ' + label, 1600);
+    applySourceHighlight(next);
+    toast('已切换到 ' + (SOURCE_LABELS[next] || next), 1600);
     if (els.input.value.trim()) doSearch(els.input.value);
   });
 
@@ -761,10 +781,7 @@ function init() {
   updateModeButton();
   els.coverArt.src = PLACEHOLDER_COVER;
   els.miniCover.src = PLACEHOLDER_COVER;
-  const bootLabel = SOURCE_LABELS[state.source] || state.source;
-  if (els.sourcePill) els.sourcePill.textContent = bootLabel;
-  if (els.heroSourcePill) els.heroSourcePill.textContent = bootLabel;
-  if (els.sourceHint) els.sourceHint.textContent = '当前：' + bootLabel.replace(/音乐/g, '') + ' · 点击切换平台后重新搜索';
+  applySourceHighlight(state.source);
   renderQueue();
   if (state.queue[state.currentIndex]) updateNowPlaying(state.queue[state.currentIndex]);
   bindEvents();
