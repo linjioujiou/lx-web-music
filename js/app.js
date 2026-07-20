@@ -14,11 +14,11 @@ const QUALITY_KEY = 'lx-web-quality';
 const VOLUME_KEY = 'lx-web-volume';
 
 const SOURCE_LABELS = {
-  wy: '网易云',
-  tx: 'QQ',
-  kw: '酷我',
-  kg: '酷狗',
-  mg: '咪咕',
+  wy: '网易云音乐',
+  tx: 'QQ音乐',
+  kw: '酷我音乐',
+  kg: '酷狗音乐',
+  mg: '咪咕音乐',
 };
 
 const MODE_PATHS = {
@@ -58,6 +58,8 @@ const els = {
   resultsMeta: $('#resultsMeta'),
   resultsTitle: $('#resultsTitle'),
   sourcePill: $('#sourcePill'),
+  heroSourcePill: $('#heroSourcePill'),
+  sourceHint: $('#sourceHint'),
   coverArt: $('#coverArt'),
   vinyl: $('#vinyl'),
   ambientCover: $('#ambientCover'),
@@ -534,7 +536,10 @@ async function doSearch(keyword) {
     state.songs = data.songs || [];
     els.resultsTitle.textContent = '搜索结果';
     els.resultsMeta.textContent = (data.sourceLabel || SOURCE_LABELS[state.source]) + ' ·「' + q + '」· ' + state.songs.length + ' 首';
-    if (els.sourcePill) els.sourcePill.textContent = data.sourceLabel || SOURCE_LABELS[state.source] || state.source;
+    const resultLabel = data.sourceLabel || SOURCE_LABELS[state.source] || state.source;
+    if (els.sourcePill) els.sourcePill.textContent = resultLabel;
+    if (els.heroSourcePill) els.heroSourcePill.textContent = resultLabel;
+    if (els.sourceHint) els.sourceHint.textContent = '当前：' + String(resultLabel).replace(/音乐/g, '') + ' · 共 ' + (state.songs.length || 0) + ' 首';
     renderSongs();
     if (!state.songs.length) {
       els.empty.hidden = false;
@@ -611,9 +616,22 @@ function bindEvents() {
   els.tabs.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-source]');
     if (!btn) return;
-    state.source = btn.dataset.source;
-    $('.chip-tab', els.tabs).forEach((t) => t.classList.toggle('active', t === btn));
-    if (els.sourcePill) els.sourcePill.textContent = SOURCE_LABELS[state.source] || state.source;
+    const next = btn.dataset.source;
+    if (next === state.source && !els.input.value.trim()) {
+      toast('当前已是' + (SOURCE_LABELS[next] || next));
+      return;
+    }
+    state.source = next;
+    $('.chip-tab', els.tabs).forEach((t) => {
+      const on = t === btn;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    const label = SOURCE_LABELS[state.source] || state.source;
+    if (els.sourcePill) els.sourcePill.textContent = label;
+    if (els.heroSourcePill) els.heroSourcePill.textContent = label;
+    if (els.sourceHint) els.sourceHint.textContent = '当前：' + label.replace(/音乐/g, '') + ' · 点击切换平台后重新搜索';
+    toast('已切换到 ' + label, 1600);
     if (els.input.value.trim()) doSearch(els.input.value);
   });
 
@@ -743,7 +761,10 @@ function init() {
   updateModeButton();
   els.coverArt.src = PLACEHOLDER_COVER;
   els.miniCover.src = PLACEHOLDER_COVER;
-  if (els.sourcePill) els.sourcePill.textContent = SOURCE_LABELS[state.source];
+  const bootLabel = SOURCE_LABELS[state.source] || state.source;
+  if (els.sourcePill) els.sourcePill.textContent = bootLabel;
+  if (els.heroSourcePill) els.heroSourcePill.textContent = bootLabel;
+  if (els.sourceHint) els.sourceHint.textContent = '当前：' + bootLabel.replace(/音乐/g, '') + ' · 点击切换平台后重新搜索';
   renderQueue();
   if (state.queue[state.currentIndex]) updateNowPlaying(state.queue[state.currentIndex]);
   bindEvents();

@@ -5,11 +5,11 @@
  */
 
 const SOURCE_LABELS = {
-  wy: '网易云',
+  wy: '网易云音乐',
   tx: 'QQ音乐',
-  kw: '酷我',
-  kg: '酷狗',
-  mg: '咪咕',
+  kw: '酷我音乐',
+  kg: '酷狗音乐',
+  mg: '咪咕音乐',
 };
 
 const UA =
