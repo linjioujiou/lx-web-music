@@ -18,7 +18,7 @@
   --topbar-h: 64px;
   --radius: 8px;
   --radius-lg: 12px;
-  --font: "DM Sans", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --font: "DM Sans", "KaiTi", "Kaiti SC", "STKaiti", "BiauKai", "DFKai-SB", "AR PL UKai CN", "Noto Serif CJK SC", serif;
   --ease: cubic-bezier(.3,0,.4,1);
   --shadow: 0 8px 24px rgba(0,0,0,.5);
 }
