@@ -346,7 +346,7 @@ function updateNowPlaying(song) {
   els.miniCover.src = cover;
   els.miniTitle.textContent = song.title;
   els.miniArtist.textContent = song.artist;
-  document.title = song.title + ' - ' + song.artist + ' · LX Web';
+  document.title = song.title + ' - ' + song.artist + ' · linjioujiou Web Music Player';
   if (els.ambientCover) {
     if (song.artwork) {
       els.ambientCover.style.backgroundImage = 'url("' + song.artwork.replace(/"/g, '') + '")';
