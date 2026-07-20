@@ -131,10 +131,30 @@ function loadQueue() {
   } catch {}
 }
 
+async function fetchJsonWithTimeout(url, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    return { res, data };
+  } catch (err) {
+    if (err?.name === 'AbortError') throw new Error('搜索超时，请稍后重试或切换音源');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function apiSearch(keyword, source) {
   const url = `/api/search?q=${encodeURIComponent(keyword)}&source=${encodeURIComponent(source)}&limit=30`;
-  const res = await fetch(url);
-  const data = await res.json();
+  const { res, data } = await fetchJsonWithTimeout(url, 15000);
+  if (!data) throw new Error('搜索接口返回异常');
   if (!res.ok || data.code !== 0) throw new Error(data.message || '搜索失败');
   return data;
 }
@@ -180,7 +200,16 @@ function parseLRC(text) {
   return lines.sort((a, b) => a.time - b.time);
 }
 
-function setLoading(on) { els.loading.hidden = !on; }
+function setLoading(on) {
+  if (!els.loading) return;
+  els.loading.hidden = !on;
+  els.loading.style.display = on ? 'grid' : 'none';
+  if (on) {
+    els.loading.removeAttribute('hidden');
+  } else {
+    els.loading.setAttribute('hidden', '');
+  }
+}
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');

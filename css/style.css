@@ -282,6 +282,7 @@ img { display: block; max-width: 100%; }
   position: absolute; inset: 0; display: grid; place-items: center; align-content: center;
   gap: 12px; background: rgba(18,18,18,.55); z-index: 5;
 }
+.loading[hidden] { display: none !important; }
 .spinner {
   width: 32px; height: 32px; border-radius: 50%;
   border: 3px solid rgba(255,255,255,.12); border-top-color: var(--green);
