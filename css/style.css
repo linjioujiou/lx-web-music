@@ -18,7 +18,9 @@
   --topbar-h: 64px;
   --radius: 8px;
   --radius-lg: 12px;
-  --font: "DM Sans", "NSimSun", "新宋体", "SimSun", "Songti SC", "STSong", "AR PL UMing CN", "Noto Serif CJK SC", serif;
+  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "NSimSun", "新宋体", "SimSun", "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  --font: var(--font-ui);
   --ease: cubic-bezier(.3,0,.4,1);
   --shadow: 0 8px 24px rgba(0,0,0,.5);
 }
@@ -26,8 +28,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; height: 100%;
-  background: var(--bg); color: var(--text); font-family: var(--font);
+  background: var(--bg); color: var(--text); font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 body { overflow: hidden; }
 button, input, select { font: inherit; color: inherit; }
@@ -60,9 +64,10 @@ img { display: block; max-width: 100%; }
 }
 .logo { color: var(--text); display: grid; place-items: center; }
 .sidebar-brand .brand-text {
-  font-size: .78rem;
+  font-family: var(--font-ui);
+  font-size: .8rem;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
   letter-spacing: .01em;
   max-width: 168px;
   display: -webkit-box;
@@ -111,12 +116,33 @@ img { display: block; max-width: 100%; }
 .queue-item .q-title {
   font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.queue-item .q-sub { font-size: .72rem; color: var(--text-sub); margin-top: 2px; }
-.chip {
-  border: 0; background: transparent; color: var(--text-sub); cursor: pointer;
-  font-size: .72rem; padding: 4px 6px; border-radius: 4px;
+.queue-item .q-sub {
+  font-size: .78rem; color: #b3b3b3; margin-top: 3px; line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-weight: 400; letter-spacing: 0;
 }
-.chip:hover { color: var(--text); background: rgba(255,255,255,.08); }
+.chip {
+  border: 0; background: transparent; color: #b3b3b3; cursor: pointer;
+  font-family: var(--font-ui); font-size: .8rem; font-weight: 600;
+  line-height: 1.2; letter-spacing: 0; padding: 5px 10px; border-radius: 999px;
+  white-space: nowrap;
+}
+.chip:hover { color: var(--text); background: rgba(255,255,255,.1); }
+.chip-rm {
+  color: #cfcfcf !important;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  font-size: .78rem !important;
+  font-weight: 650 !important;
+  padding: 5px 11px !important;
+  min-width: 3.2em;
+  text-align: center;
+}
+.chip-rm:hover {
+  color: #fff !important;
+  background: rgba(255,80,80,.22);
+  border-color: rgba(255,120,120,.35);
+}
 .btn-ghost {
   margin-top: 10px; border: 1px solid #727272; background: transparent; color: var(--text);
   border-radius: 999px; padding: 7px 14px; font-size: .78rem; font-weight: 700;
@@ -342,7 +368,8 @@ img { display: block; max-width: 100%; }
 .hero-meta h1 {
   margin: 0 0 10px; font-size: clamp(1.8rem, 4vw, 3.4rem); line-height: 1.1;
   font-weight: 800; letter-spacing: -.03em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-display);
+  word-break: break-word;
 }
 .hero-sub {
   margin: 0 0 18px; color: var(--text-sub); font-size: .95rem;
@@ -400,9 +427,10 @@ img { display: block; max-width: 100%; }
 .table-head {
   display: grid;
   grid-template-columns: 40px minmax(180px, 2.2fr) minmax(100px, 1.2fr) 70px 90px;
-  gap: 12px; padding: 0 12px 8px; color: var(--text-sub); font-size: .75rem;
+  gap: 12px; padding: 0 12px 8px; color: #a7a7a7; font-size: .8rem;
+  font-weight: 600; line-height: 1.4; letter-spacing: 0;
   border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 8px;
-  text-transform: uppercase; letter-spacing: .04em;
+  text-transform: none;
 }
 .song-list { display: flex; flex-direction: column; }
 .song-item {
@@ -422,11 +450,14 @@ img { display: block; max-width: 100%; }
 .song-item .title { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .song-item.active .title { color: var(--green); }
 .song-item .sub {
-  font-size: .8rem; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+  font-size: .82rem; color: #b3b3b3; line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px;
+  font-weight: 400; letter-spacing: 0;
 }
 .song-item .album, .song-item .dur {
-  color: var(--text-sub); font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
+  color: #b3b3b3; font-size: .84rem; line-height: 1.35; font-weight: 400;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums; letter-spacing: 0;
 }
 .song-item .actions { display: flex; justify-content: flex-end; gap: 4px; opacity: 0; transition: opacity .12s; }
 .song-item:hover .actions, .song-item.active .actions { opacity: 1; }
@@ -751,6 +782,7 @@ input[type="range"]:hover { background:
 .np-title {
   margin: 0; font-size: clamp(1.35rem, 2.2vw, 1.85rem); font-weight: 700;
   letter-spacing: -.02em; line-height: 1.2;
+  font-family: var(--font-display);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .np-artist {

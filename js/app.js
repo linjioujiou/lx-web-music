@@ -258,8 +258,21 @@ function applySourceHighlight(source) {
   }
 }
 
+function cleanText(str) {
+  return String(str ?? '')
+    .replace(/\u0000/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function escapeHtml(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return cleanText(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function renderSongs() {
@@ -282,11 +295,11 @@ function renderSongs() {
       '<div class="title-cell">' +
         '<img src="' + cover + '" alt="" loading="lazy" onerror="this.src=\'' + PLACEHOLDER_COVER + '\'" />' +
         '<div class="meta">' +
-          '<div class="title">' + escapeHtml(song.title) + '</div>' +
-          '<div class="sub">' + escapeHtml(song.artist) + '</div>' +
+          '<div class="title" title="' + escapeHtml(song.title) + '">' + escapeHtml(song.title) + '</div>' +
+          '<div class="sub" title="' + escapeHtml(song.artist) + '">' + escapeHtml(song.artist) + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="album">' + escapeHtml(song.album || '—') + '</div>' +
+      '<div class="album" title="' + escapeHtml(song.album || '') + '">' + escapeHtml(song.album || '—') + '</div>' +
       '<div class="dur">' + (song.duration ? formatTime(song.duration) : '—') + '</div>' +
       '<div class="actions">' +
         '<button type="button" class="chip primary" data-act="play">播放</button>' +
@@ -321,7 +334,7 @@ function renderQueue() {
       '<div><div class="q-title">' + escapeHtml(song.title) + '</div>' +
       '<div class="q-sub">' + escapeHtml(song.artist) + ' · ' +
       escapeHtml(song.sourceLabel || song.source) + '</div></div>' +
-      '<button type="button" class="chip" data-act="rm">移除</button>';
+      '<button type="button" class="chip chip-rm" data-act="rm" title="从列表移除" aria-label="移除">移除</button>';
     item.addEventListener('click', (e) => {
       if (e.target && e.target.dataset && e.target.dataset.act === 'rm') {
         e.stopPropagation();
