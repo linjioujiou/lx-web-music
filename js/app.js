@@ -36,7 +36,7 @@ const MODE_LABELS = {
 };
 
 const state = {
-  source: 'wy',
+  source: 'tx',
   songs: [],
   queue: [],
   currentIndex: -1,

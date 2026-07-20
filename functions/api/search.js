@@ -266,7 +266,7 @@ export async function onRequest(context) {
 
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get('q') || searchParams.get('keyword') || '').trim();
-  const source = (searchParams.get('source') || 'wy').toLowerCase();
+  const source = (searchParams.get('source') || 'tx').toLowerCase();
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10) || 20, 1), 50);
 
   if (!q) return json({ code: 400, message: '缺少搜索关键词 q', songs: [] }, 400);
