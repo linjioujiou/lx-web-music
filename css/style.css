@@ -1440,6 +1440,16 @@ body.np-open .toast { z-index: 120; }
 }
 
 
+
+/* Play mode button active highlight */
+#btnMode.is-active-mode,
+#npBtnMode.is-active-mode {
+  color: var(--green);
+}
+#npBtnMode.is-active-mode {
+  color: #1ed760;
+}
+
 /* =========================================================
    FINAL FONT POLICY (must stay last — wins over component CSS)
    正文/标题/歌词中文 → 新宋体

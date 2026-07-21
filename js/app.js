@@ -3,7 +3,7 @@
  * Search via /api/search, play URL via /api/url (lx-music-source backends)
  */
 
-import { createFluidBackground } from './fluid-bg.js?v=np-no-mute1';
+import { createFluidBackground } from './fluid-bg.js?v=mode-icon1';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -25,10 +25,14 @@ const SOURCE_LABELS = {
 };
 
 const MODE_PATHS = {
-  order: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z',
+  // 顺序播放：列表 + 播放
+  order: 'M3 5h11v2H3V5zm0 6h11v2H3v-2zm0 6h7v2H3v-2zm15.5-8.5L14 12l4.5 3.5V8.5zM21 16.5L16.5 13v7L21 16.5z',
+  // 列表循环
   loop: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z',
-  single: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z',
-  shuffle: 'M10.6 9.4 9.2 8l-2.5 2.5L4 7.8 2.6 9.2l2.7 2.7-2.7 2.7L4 16.2l2.7-2.7 2.5 2.5 1.4-1.4-2.5-2.5 2.5-2.7zM21 7h-4.6l-1.8 1.8 1.4 1.4L17.2 9H21V7zm0 8h-3.8l-5.4-5.4L10.4 11l5.4 5.4H21v-1.4z',
+  // 单曲循环：循环 + 1
+  single: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zM13 15h-1.5V10.8L10 11.5v-1.2l2.2-1.3H13V15z',
+  // 随机播放
+  shuffle: 'M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z',
 };
 
 const MODE_LABELS = {
@@ -771,12 +775,15 @@ function playPrev() {
 
 function updateModeButton() {
   const path = MODE_PATHS[state.mode] || MODE_PATHS.order;
+  const label = MODE_LABELS[state.mode] || MODE_LABELS.order;
   const apply = (btn) => {
     if (!btn) return;
-    const svg = btn.querySelector('svg path');
-    if (svg) svg.setAttribute('d', path);
-    btn.title = MODE_LABELS[state.mode];
-    btn.setAttribute('aria-label', MODE_LABELS[state.mode]);
+    const svgPath = btn.querySelector('svg path');
+    if (svgPath) svgPath.setAttribute('d', path);
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.dataset.mode = state.mode;
+    btn.classList.toggle('is-active-mode', state.mode !== 'order');
   };
   apply(els.btnMode);
   apply(els.npBtnMode);
