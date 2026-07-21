@@ -6,10 +6,7 @@
   <meta name="description" content="linjioujiou Web Music Player — 在线音乐播放" />
   <meta name="theme-color" content="#000000" />
   <title>linjioujiou Web Music Player</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/style.css?v=rmclear1" />
+<link rel="stylesheet" href="/css/style.css?v=np-no-mute1" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%231DB954'/%3E%3Cpath d='M30 62c12-4 24-6 40-4' stroke='black' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Cpath d='M28 48c15-5 30-7 46-4' stroke='black' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3Cpath d='M26 35c18-6 36-8 52-4' stroke='black' stroke-width='6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -199,7 +196,11 @@
 
   <!-- Apple Music–style now playing detail -->
   <div class="np-sheet" id="npSheet" hidden aria-hidden="true">
-    <div class="np-sheet-bg" id="npSheetBg" aria-hidden="true"></div>
+    <div class="np-sheet-bg" id="npSheetBg" aria-hidden="true">
+      <div class="np-fluid-base" id="npFluidBase"></div>
+      <div class="np-fluid-layer" id="npFluidLayer" aria-hidden="true"></div>
+      <div class="np-fluid-vignette" aria-hidden="true"></div>
+    </div>
     <div class="np-sheet-scrim" aria-hidden="true"></div>
 
     <header class="np-sheet-top">
@@ -247,9 +248,28 @@
           <button type="button" class="np-ctrl" id="npBtnNext" title="下一首" aria-label="下一首">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
           </button>
-          <button type="button" class="np-ctrl" id="npBtnVolHint" title="音量请用底部栏调节" aria-label="音量" disabled>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
-          </button>
+          <div class="np-vol-wrap" id="npVolWrap">
+            <div class="np-vol-popover" id="npVolPopover" hidden>
+              <div
+                class="np-vol-hit"
+                id="npVolHit"
+                role="slider"
+                tabindex="0"
+                aria-label="音量"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="80"
+                aria-orientation="vertical"
+              >
+                <div class="np-vol-fill" id="npVolFill"></div>
+                <div class="np-vol-knob" id="npVolKnob" aria-hidden="true"></div>
+              </div>
+              <input type="range" id="npVolBar" class="np-vol-bar-sr" min="0" max="100" value="80" tabindex="-1" aria-hidden="true" />
+            </div>
+            <button type="button" class="np-ctrl" id="npBtnVol" title="音量" aria-label="音量" aria-expanded="false" aria-controls="npVolPopover">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a6.9 6.9 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -268,6 +288,6 @@
   </div>
   <div class="toast" id="toast" hidden></div>
   <audio id="audio" preload="metadata"></audio>
-  <script src="/js/app.js?v=rmclear1" type="module"></script>
+  <script src="/js/app.js?v=np-no-mute1" type="module"></script>
 </body>
 </html>

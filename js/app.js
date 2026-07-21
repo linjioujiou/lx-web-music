@@ -3,8 +3,11 @@
  * Search via /api/search, play URL via /api/url (lx-music-source backends)
  */
 
+import { createFluidBackground } from './fluid-bg.js?v=np-no-mute1';
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
 const PLACEHOLDER_COVER =
   "data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'300\'%3E%3Cdefs%3E%3ClinearGradient id=\'g\' x1=\'0\' y1=\'0\' x2=\'1\' y2=\'1\'%3E%3Cstop stop-color=\'%231a1f2e\'/%3E%3Cstop offset=\'1\' stop-color=\'%23252c42\'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill=\'url(%23g)\' width=\'300\' height=\'300\'/%3E%3Ccircle cx=\'150\' cy=\'150\' r=\'70\' fill=\'none\' stroke=\'%23636b84\' stroke-width=\'2\' opacity=\'.5\'/%3E%3Ctext x=\'50%25\' y=\'52%25\' fill=\'%238b93a7\' text-anchor=\'middle\' dy=\'.3em\' font-size=\'42\' font-family=\'sans-serif\'%3E%E2%99%AA%3C/text%3E%3C/svg%3E";
@@ -89,6 +92,8 @@ const els = {
   toast: $('#toast'),
   npSheet: $('#npSheet'),
   npSheetBg: $('#npSheetBg'),
+  npFluidLayer: $('#npFluidLayer'),
+  npFluidBase: $('#npFluidBase'),
   npSheetCover: $('#npSheetCover'),
   npSheetTitle: $('#npSheetTitle'),
   npSheetArtist: $('#npSheetArtist'),
@@ -100,6 +105,13 @@ const els = {
   npBtnPrev: $('#npBtnPrev'),
   npBtnNext: $('#npBtnNext'),
   npBtnMode: $('#npBtnMode'),
+  npBtnVol: $('#npBtnVol'),
+  npVolWrap: $('#npVolWrap'),
+  npVolPopover: $('#npVolPopover'),
+  npVolBar: $('#npVolBar'),
+  npVolHit: $('#npVolHit'),
+  npVolFill: $('#npVolFill'),
+  npVolKnob: $('#npVolKnob'),
   lyricsBox: $('#lyricsBox'),
   btnOpenDetail: $('#btnOpenDetail'),
   btnCloseDetail: $('#btnCloseDetail'),
@@ -108,6 +120,7 @@ const els = {
 };
 
 let toastTimer = null;
+let fluidBg = null;
 
 function toast(msg, ms = 2600) {
   els.toast.textContent = msg;
@@ -351,15 +364,6 @@ function renderQueue() {
 }
 
 function updateNowPlaying(song) {
-  const setSheetBg = (url) => {
-    if (!els.npSheetBg) return;
-    if (url) {
-      els.npSheetBg.style.backgroundImage = 'url("' + String(url).replace(/"/g, '') + '")';
-    } else {
-      els.npSheetBg.style.backgroundImage = '';
-    }
-  };
-
   if (!song) {
     els.npTitle.textContent = '尚未播放';
     els.npArtist.textContent = '选择一首歌曲开始聆听';
@@ -376,7 +380,7 @@ function updateNowPlaying(song) {
     if (els.npSheetArtist) els.npSheetArtist.textContent = '选择一首歌曲开始聆听';
     if (els.npSheetCover) els.npSheetCover.src = PLACEHOLDER_COVER;
     if (els.npSheetSource) els.npSheetSource.textContent = '—';
-    setSheetBg('');
+    if (fluidBg) fluidBg.setArtwork('');
     if (els.ambientCover) {
       els.ambientCover.classList.remove('on');
       els.ambientCover.style.backgroundImage = '';
@@ -399,7 +403,7 @@ function updateNowPlaying(song) {
   if (els.npSheetArtist) els.npSheetArtist.textContent = song.artist;
   if (els.npSheetCover) els.npSheetCover.src = cover;
   if (els.npSheetSource) els.npSheetSource.textContent = sourceLabel;
-  setSheetBg(song.artwork || '');
+  if (fluidBg) fluidBg.setArtwork(song.artwork || '');
   document.title = song.title + ' - ' + song.artist + ' · linjioujiou Web Music Player';
   if (els.ambientCover) {
     if (song.artwork) {
@@ -411,9 +415,124 @@ function updateNowPlaying(song) {
   }
 }
 
+let lyricScrollRaf = 0;
+let lyricPrevIndex = -1;
+
+/** Soft ease with slight overshoot then settle (not flashy) */
+function easeOutBackSoft(x) {
+  // very mild settle, almost cubic (~2% overshoot)
+  const c1 = 1.05;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+}
+
+function easeOutCubic(x) {
+  return 1 - Math.pow(1 - x, 3);
+}
+
+/**
+ * Focus-centric lyric look:
+ * - active: opacity 1, sharp, slight scale
+ * - others: opacity/blur grow with distance (future stronger)
+ * - staggered delays top→bottom + soft overshoot on transform
+ */
+function applyLyricFocusStyles(lines, idx, prevIdx) {
+  const n = lines.length;
+  const goingDown = idx >= prevIdx;
+  lines.forEach((el, i) => {
+    const dist = idx < 0 ? i + 1 : i - idx; // + future, - past, 0 active
+    const abs = Math.abs(dist);
+
+    el.classList.remove('active', 'past', 'future');
+    if (idx < 0 || dist > 0) el.classList.add('future');
+    else if (dist < 0) el.classList.add('past');
+    else el.classList.add('active');
+
+    let opacity;
+    let blur;
+    let scale;
+    let y;
+
+    if (dist === 0) {
+      // 当前行：完全不透明，清晰聚焦，极轻放大
+      opacity = 1;
+      blur = 0;
+      scale = 1.04;
+      y = 0;
+    } else if (dist < 0) {
+      // 已播放：略淡、轻模糊，不抢焦点
+      const t = Math.min(abs, 8) / 8;
+      opacity = 0.5 - t * 0.28; // ~0.50 → ~0.22
+      blur = 0.25 + t * 2.1;
+      scale = 1 - Math.min(0.05, abs * 0.011);
+      y = -Math.min(5, abs * 0.95);
+    } else {
+      // 未播放：自上而下（距当前越远）透明与模糊递增，仍可读
+      const t = Math.min(dist, 10) / 10;
+      opacity = 0.58 - t * 0.38; // ~0.58 → ~0.20
+      blur = 0.45 + t * 3.2; // ~0.45 → ~3.65px
+      scale = 1 - Math.min(0.08, dist * 0.013);
+      y = Math.min(8, dist * 1.15);
+    }
+
+    opacity = clamp(opacity, 0.16, 1);
+    blur = clamp(blur, 0, 4.2);
+    scale = clamp(scale, 0.92, 1.06);
+
+    // 滚动牵动：整体从上到下逐行延迟
+    let stagger;
+    if (goingDown) {
+      stagger = Math.min(i * 20 + abs * 6, 220);
+    } else {
+      // 往回跳时自下而上牵动，仍保持连贯
+      stagger = Math.min((n - 1 - i) * 20 + abs * 6, 220);
+    }
+    // 当前行稍快落下焦点
+    if (dist === 0) stagger = Math.min(stagger, 28);
+
+    el.style.setProperty('--lo', opacity.toFixed(3));
+    el.style.setProperty('--lb', blur.toFixed(2) + 'px');
+    el.style.setProperty('--ls', scale.toFixed(3));
+    el.style.setProperty('--ly', y.toFixed(2) + 'px');
+    el.style.setProperty('--ld', stagger + 'ms');
+  });
+}
+
+function scrollLyricsToActive(activeEl) {
+  if (!activeEl || !els.lyricsBox || !state.sheetOpen) return;
+  const box = els.lyricsBox;
+  const boxRect = box.getBoundingClientRect();
+  const lineRect = activeEl.getBoundingClientRect();
+  // 焦点约在视口上方 32% 处
+  const target = lineRect.top - boxRect.top - boxRect.height * 0.32 + box.scrollTop;
+  const start = box.scrollTop;
+  const delta = Math.max(0, target) - start;
+  if (Math.abs(delta) < 0.5) return;
+
+  const dur = clamp(480 + Math.abs(delta) * 0.38, 480, 900);
+  const t0 = performance.now();
+  if (lyricScrollRaf) cancelAnimationFrame(lyricScrollRaf);
+
+  const frame = (now) => {
+    const p = Math.min(1, (now - t0) / dur);
+    // 接近 cubic 的柔和减速，几乎无回弹
+    const base = easeOutCubic(p);
+    const over = easeOutBackSoft(p) - base;
+    const eased = base + over * 0.35;
+    box.scrollTop = start + delta * eased;
+    if (p < 1) lyricScrollRaf = requestAnimationFrame(frame);
+    else {
+      box.scrollTop = start + delta;
+      lyricScrollRaf = 0;
+    }
+  };
+  lyricScrollRaf = requestAnimationFrame(frame);
+}
+
 function renderLyrics(raw) {
   state.lyrics = parseLRC(raw);
   state.lyricIndex = -1;
+  lyricPrevIndex = -1;
   if (!els.lyricsInner) return;
   if (!state.lyrics.length) {
     els.lyricsInner.innerHTML = raw
@@ -424,8 +543,19 @@ function renderLyrics(raw) {
   }
   if (els.npLyricsHint) els.npLyricsHint.textContent = '点击歌词可跳转 · 随播放自动滚动';
   els.lyricsInner.innerHTML = state.lyrics
-    .map((l, i) => '<div class="line future" data-i="' + i + '" data-t="' + l.time + '">' + escapeHtml(l.text) + '</div>')
+    .map((l, i) =>
+      '<div class="line future" data-i="' +
+      i +
+      '" data-t="' +
+      l.time +
+      '">' +
+      escapeHtml(l.text) +
+      '</div>'
+    )
     .join('');
+  // 初始：全部按「未播放」渐隐渐模糊铺开
+  const lines = $$('.line', els.lyricsInner);
+  applyLyricFocusStyles(lines, -1, -1);
 }
 
 function syncLyricHighlight(t) {
@@ -436,24 +566,14 @@ function syncLyricHighlight(t) {
     else break;
   }
   if (idx === state.lyricIndex) return;
+  const prev = state.lyricIndex;
   state.lyricIndex = idx;
   const lines = $$('.line', els.lyricsInner);
-  let activeEl = null;
-  lines.forEach((el, i) => {
-    el.classList.remove('active', 'past', 'future');
-    if (i < idx) el.classList.add('past');
-    else if (i === idx) {
-      el.classList.add('active');
-      activeEl = el;
-    } else el.classList.add('future');
-  });
-  if (activeEl && els.lyricsBox && state.sheetOpen) {
-    const box = els.lyricsBox;
-    const boxRect = box.getBoundingClientRect();
-    const lineRect = activeEl.getBoundingClientRect();
-    const offset = lineRect.top - boxRect.top - boxRect.height * 0.35 + box.scrollTop;
-    box.scrollTo({ top: Math.max(0, offset), behavior: 'smooth' });
-  }
+  applyLyricFocusStyles(lines, idx, prev < 0 ? idx : prev);
+  lyricPrevIndex = idx;
+
+  const activeEl = idx >= 0 ? lines[idx] : null;
+  scrollLyricsToActive(activeEl);
 }
 
 function openNowPlayingSheet() {
@@ -465,6 +585,12 @@ function openNowPlayingSheet() {
     els.npSheet.classList.add('is-open');
   });
   document.body.classList.add('np-open');
+  if (fluidBg) {
+    fluidBg.start();
+    fluidBg.setPlaying(!!(audio && !audio.paused));
+    const song = state.queue[state.currentIndex];
+    if (song) fluidBg.setArtwork(song.artwork || '');
+  }
   // resync lyric scroll after open
   if (audio) syncLyricHighlight(audio.currentTime || 0);
 }
@@ -476,7 +602,10 @@ function closeNowPlayingSheet() {
   document.body.classList.remove('np-open');
   els.npSheet.setAttribute('aria-hidden', 'true');
   window.setTimeout(() => {
-    if (!state.sheetOpen) els.npSheet.hidden = true;
+    if (!state.sheetOpen) {
+      els.npSheet.hidden = true;
+      if (fluidBg) fluidBg.stop();
+    }
   }, 320);
 }
 
@@ -586,6 +715,7 @@ function updatePlayUI() {
     const text = heroPlay.querySelector('.hero-play-text');
     if (text) text.textContent = playing ? '暂停' : '播放';
   }
+  if (fluidBg) fluidBg.setPlaying(playing);
 }
 
 function nextIndex() {
@@ -661,11 +791,178 @@ function cycleMode() {
 }
 
 function setMuteUI(muted) {
-  const on = els.btnMute && els.btnMute.querySelector('.vol-on');
-  const off = els.btnMute && els.btnMute.querySelector('.vol-off');
+  // Bottom bar mute only — detail page has volume popover, no mute button
+  const btn = els.btnMute;
+  if (!btn) return;
+  const on = btn.querySelector('.vol-on');
+  const off = btn.querySelector('.vol-off');
   if (on && off) {
     on.hidden = muted;
     off.hidden = !muted;
+  }
+  btn.title = muted ? '取消静音' : '静音';
+  btn.setAttribute('aria-label', muted ? '取消静音' : '静音');
+  btn.classList.toggle('is-muted', !!muted);
+}
+
+function setVolumeUI(percent) {
+  const p = clamp(Number(percent) || 0, 0, 100);
+  if (els.volBar) {
+    els.volBar.value = String(p);
+    setRangeProgress(els.volBar, p / 100);
+  }
+  if (els.npVolBar) {
+    els.npVolBar.value = String(p);
+    setRangeProgress(els.npVolBar, p / 100);
+  }
+  // Full-panel vertical slider: bottom = 0%, top = 100% of entire popover
+  const track = els.npVolPopover || els.npVolHit;
+  if (track) track.style.setProperty('--vol', p + '%');
+  if (els.npVolHit) {
+    els.npVolHit.style.setProperty('--vol', p + '%');
+    els.npVolHit.setAttribute('aria-valuenow', String(p));
+  }
+  if (els.npVolFill) {
+    els.npVolFill.style.height = p + '%';
+    els.npVolFill.classList.toggle('is-full', p >= 99.5);
+    els.npVolFill.classList.toggle('is-empty', p <= 0.5);
+  }
+  if (els.npVolKnob) {
+    els.npVolKnob.style.bottom = p + '%';
+  }
+  setMuteUI(p === 0);
+}
+
+function applyVolume(percent, { persist = true } = {}) {
+  const p = clamp(Number(percent) || 0, 0, 100);
+  audio.volume = p / 100;
+  setVolumeUI(p);
+  if (persist) localStorage.setItem(VOLUME_KEY, String(p));
+}
+
+function toggleMute() {
+  if (audio.volume > 0) {
+    audio.dataset.prevVol = String(els.volBar ? els.volBar.value : Math.round(audio.volume * 100));
+    applyVolume(0, { persist: false });
+  } else {
+    const prev = Number(audio.dataset.prevVol || localStorage.getItem(VOLUME_KEY) || 80);
+    applyVolume(prev || 80, { persist: true });
+  }
+}
+
+function setNpVolumeOpen(open) {
+  const pop = els.npVolPopover;
+  const btn = els.npBtnVol;
+  const wrap = els.npVolWrap;
+  if (!pop || !btn) return;
+  const on = !!open;
+  pop.hidden = !on;
+  btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+  btn.classList.toggle('is-open', on);
+  if (wrap) wrap.classList.toggle('is-open', on);
+  if (on) {
+    const focusEl = els.npVolHit || pop;
+    try { focusEl.focus({ preventScroll: true }); } catch {}
+  }
+}
+
+function volumeFromPointerY(clientY) {
+  // Always map against the whole panel height (edge to edge)
+  const el = els.npVolPopover || els.npVolHit;
+  if (!el) return 0;
+  const rect = el.getBoundingClientRect();
+  if (rect.height <= 0) return 0;
+  const ratio = 1 - (clientY - rect.top) / rect.height;
+  return clamp(Math.round(ratio * 100), 0, 100);
+}
+
+function setupNpVolumePopover() {
+  if (!els.npBtnVol || !els.npVolPopover) return;
+  const panel = els.npVolPopover;
+  const hit = els.npVolHit || panel;
+  let dragging = false;
+  let activePointerId = null;
+
+  const setFromEvent = (e) => {
+    const y = e.clientY != null ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY);
+    if (y == null) return;
+    applyVolume(volumeFromPointerY(y), { persist: true });
+  };
+
+  const onPointerDown = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+    activePointerId = e.pointerId;
+    if (els.npVolWrap) els.npVolWrap.classList.add('is-dragging');
+    if (panel.setPointerCapture && e.pointerId != null) {
+      try { panel.setPointerCapture(e.pointerId); } catch {}
+    }
+    setFromEvent(e);
+  };
+
+  const onPointerMove = (e) => {
+    if (!dragging) return;
+    if (activePointerId != null && e.pointerId != null && e.pointerId !== activePointerId) return;
+    e.preventDefault();
+    setFromEvent(e);
+  };
+
+  const onPointerUp = (e) => {
+    if (!dragging) return;
+    if (activePointerId != null && e.pointerId != null && e.pointerId !== activePointerId) return;
+    dragging = false;
+    activePointerId = null;
+    if (els.npVolWrap) els.npVolWrap.classList.remove('is-dragging');
+    if (panel.releasePointerCapture && e.pointerId != null) {
+      try { panel.releasePointerCapture(e.pointerId); } catch {}
+    }
+  };
+
+  // Entire panel surface is interactive (edge to edge)
+  panel.addEventListener('pointerdown', onPointerDown);
+  panel.addEventListener('pointermove', onPointerMove);
+  panel.addEventListener('pointerup', onPointerUp);
+  panel.addEventListener('pointercancel', onPointerUp);
+  if (hit && hit !== panel) hit.addEventListener('pointerdown', onPointerDown);
+
+  hit.addEventListener('keydown', (e) => {
+    const cur = Number(els.npVolBar ? els.npVolBar.value : Math.round((audio.volume || 0) * 100));
+    let next = cur;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') next = cur + 5;
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') next = cur - 5;
+    else if (e.key === 'Home') next = 100;
+    else if (e.key === 'End') next = 0;
+    else if (e.key === 'PageUp') next = cur + 10;
+    else if (e.key === 'PageDown') next = cur - 10;
+    else return;
+    e.preventDefault();
+    applyVolume(next, { persist: true });
+  });
+
+  els.npBtnVol.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = els.npVolPopover.hidden;
+    setNpVolumeOpen(open);
+  });
+
+  if (els.npVolWrap) {
+    els.npVolWrap.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  document.addEventListener('click', () => {
+    if (els.npVolPopover && !els.npVolPopover.hidden) setNpVolumeOpen(false);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && els.npVolPopover && !els.npVolPopover.hidden) {
+      setNpVolumeOpen(false);
+    }
+  });
+
+  if (els.btnCloseDetail) {
+    els.btnCloseDetail.addEventListener('click', () => setNpVolumeOpen(false));
   }
 }
 
@@ -832,29 +1129,18 @@ function bindEvents() {
     state.seeking = false;
   });
 
-  els.volBar.addEventListener('input', () => {
-    const v = Number(els.volBar.value) / 100;
-    audio.volume = v;
-    localStorage.setItem(VOLUME_KEY, String(els.volBar.value));
-    setRangeProgress(els.volBar, v);
-    setMuteUI(v === 0);
-  });
-
-  els.btnMute.addEventListener('click', () => {
-    if (audio.volume > 0) {
-      audio.dataset.prevVol = String(els.volBar.value);
-      els.volBar.value = 0;
-      audio.volume = 0;
-      setRangeProgress(els.volBar, 0);
-      setMuteUI(true);
-    } else {
-      const prev = Number(audio.dataset.prevVol || 80);
-      els.volBar.value = prev;
-      audio.volume = prev / 100;
-      setRangeProgress(els.volBar, prev / 100);
-      setMuteUI(false);
-    }
-  });
+  if (els.volBar) {
+    els.volBar.addEventListener('input', () => {
+      applyVolume(Number(els.volBar.value), { persist: true });
+    });
+  }
+  if (els.npVolBar) {
+    els.npVolBar.addEventListener('input', () => {
+      applyVolume(Number(els.npVolBar.value), { persist: true });
+    });
+  }
+  if (els.btnMute) els.btnMute.addEventListener('click', toggleMute);
+  setupNpVolumePopover();
 
   els.qualitySelect.addEventListener('change', () => {
     state.quality = els.qualitySelect.value;
@@ -991,10 +1277,7 @@ function init() {
   loadQueue();
   els.qualitySelect.value = state.quality;
   const vol = Number(localStorage.getItem(VOLUME_KEY) || 80);
-  els.volBar.value = String(vol);
-  audio.volume = vol / 100;
-  setRangeProgress(els.volBar, vol / 100);
-  setMuteUI(vol === 0);
+  applyVolume(Number.isFinite(vol) ? vol : 80, { persist: false });
   updateModeButton();
   els.coverArt.src = PLACEHOLDER_COVER;
   els.miniCover.src = PLACEHOLDER_COVER;
@@ -1004,6 +1287,18 @@ function init() {
   if (state.queue[state.currentIndex]) updateNowPlaying(state.queue[state.currentIndex]);
   bindEvents();
   updatePlayUI();
+  if (els.npSheetBg) {
+    fluidBg = createFluidBackground({
+      sheet: els.npSheet,
+      bg: els.npSheetBg,
+      layer: els.npFluidLayer,
+      base: els.npFluidBase,
+      audio,
+    });
+    if (state.queue[state.currentIndex]) {
+      fluidBg.setArtwork(state.queue[state.currentIndex].artwork || '');
+    }
+  }
   if (!state.songs.length) els.empty.hidden = false;
 }
 

@@ -1,4 +1,4 @@
-/* LX Web — Spotify-inspired UI */
+/* LX Web 鈥?Spotify-inspired UI */
 
 :root {
   --bg: #000;
@@ -7,8 +7,8 @@
   --bg-press: #282828;
   --bg-tinted: #181818;
   --text: #fff;
-  --text-sub: #b3b3b3;
-  --text-dim: #6a6a6a;
+  --text-sub: #c8c8c8;
+  --text-dim: #9a9a9a;
   --green: #1db954;
   --green-hover: #1ed760;
   --green-press: #169c46;
@@ -18,9 +18,10 @@
   --topbar-h: 64px;
   --radius: 8px;
   --radius-lg: 12px;
-  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", "DM Sans", system-ui, -apple-system, sans-serif;
-  --font-display: "NSimSun", "新宋体", "SimSun", "Songti SC", "STSong", "Noto Serif CJK SC", serif;
-  --font: var(--font-display);
+  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-song: "NSimSun", "新宋体", "SimSun", "宋体", "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  --font-display: var(--font-song);
+  --font: var(--font-song);
   --ease: cubic-bezier(.3,0,.4,1);
   --shadow: 0 8px 24px rgba(0,0,0,.5);
 }
@@ -28,7 +29,8 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0; height: 100%;
-  background: var(--bg); color: var(--text); font-family: var(--font-display);
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-song);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -38,6 +40,224 @@ button, input, select { font: inherit; color: inherit; }
 a { color: var(--text-sub); text-decoration: none; }
 a:hover { color: var(--text); text-decoration: underline; }
 img { display: block; max-width: 100%; }
+
+/* ========== Font policy ==========
+ * 正文/标题/歌词中文：新宋体
+ * 小号 UI 文字：清晰无衬线（避免新宋体小字发虚、对比不足）
+ */
+button,
+input,
+select {
+  font-family: var(--font-ui);
+}
+
+/* Content / titles stay Song */
+.sidebar-brand,
+.sidebar-card-title,
+.nav-item,
+.hero-meta h1,
+.section-head h2,
+.song-item .title,
+.queue-item .q-title,
+.player-title,
+.np-title,
+.np-lyrics-inner .line,
+.lyrics-inner .line,
+.empty-state h3 {
+  font-family: var(--font-song);
+}
+
+/* UI chrome + small labels: clear UI font */
+.chip,
+.chip-tab,
+.chip-rm,
+.chip.primary,
+.muted,
+.small,
+.source-hint,
+.sidebar-footer,
+.sidebar-footer a,
+.sidebar-brand .brand-text,
+.sidebar-card-desc,
+.queue-item .q-sub,
+.song-item .sub,
+.song-item .artist,
+.song-item .actions,
+.song-item .idx,
+.list-head,
+.player-artist,
+.player-timeline,
+.player-right,
+.player-right select,
+.current-source-badge,
+.count-badge,
+.hero-badge,
+.quality-badge,
+.section-sub,
+.toast,
+.np-lyrics-hint,
+.np-artist,
+.np-time,
+.np-time-cur,
+.np-time-dur,
+.np-sheet-title,
+.np-ctrl,
+.np-icon-btn,
+.empty-state p,
+.lyrics-section .hint,
+.btn-green,
+.btn-ghost {
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: auto;
+}
+
+/* Small-text readability: min size ~13px, stronger contrast */
+.muted {
+  color: #c4c4c4;
+}
+.small {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.45;
+  color: #c4c4c4;
+  font-weight: 500;
+}
+.source-hint {
+  font-size: 0.8125rem !important;
+  color: #a8a8a8 !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.sidebar-footer,
+.sidebar-footer a {
+  font-size: 0.8125rem !important;
+  color: #a8a8a8 !important;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.sidebar-brand .brand-text {
+  font-size: 0.8125rem !important;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #f0f0f0;
+}
+.sidebar-card-desc {
+  font-size: 0.8125rem !important;
+  color: #c4c4c4 !important;
+  line-height: 1.45;
+}
+.queue-item .q-sub {
+  font-size: 0.8125rem !important;
+  color: #c4c4c4 !important;
+  font-weight: 500;
+}
+.song-item .sub,
+.song-item .artist {
+  font-size: 0.8125rem !important;
+  color: #c4c4c4 !important;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.player-artist {
+  font-size: 0.8125rem !important;
+  color: #c8c8c8 !important;
+  font-weight: 500;
+}
+.player-timeline {
+  font-size: 0.75rem !important; /* 12px tabular times */
+  color: #bdbdbd !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.player-right select,
+.player-right {
+  font-size: 0.8125rem !important;
+  color: #d0d0d0;
+  font-weight: 600;
+}
+.chip,
+.chip-tab,
+.chip.primary {
+  font-size: 0.8125rem !important;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.chip-rm {
+  font-family: var(--font-ui) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 700 !important;
+  color: #e8e8e8 !important;
+  -webkit-font-smoothing: antialiased !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+}
+.count-badge,
+.hero-badge {
+  font-size: 0.75rem !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+.section-sub {
+  font-size: 0.875rem !important;
+  color: #c4c4c4 !important;
+  font-weight: 500;
+  line-height: 1.45;
+}
+.list-head {
+  font-size: 0.8125rem !important;
+  color: #b0b0b0 !important;
+  font-weight: 600;
+}
+.np-lyrics-hint {
+  font-size: 0.8125rem !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-weight: 600;
+}
+.np-artist {
+  font-size: 1rem !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-weight: 500;
+}
+.np-time,
+.np-time-cur,
+.np-time-dur {
+  font-size: 0.75rem !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.empty-state p {
+  font-size: 0.875rem !important;
+  color: #c4c4c4 !important;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.toast {
+  font-size: 0.875rem !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.current-source-badge {
+  font-size: 0.8125rem !important;
+  font-weight: 750;
+}
+
+/* 新宋体正文：标题与歌词保持衬线气质 */
+.hero-meta h1,
+.np-title,
+.song-item .title,
+.queue-item .q-title,
+.player-title,
+.section-head h2,
+.np-lyrics-inner .line {
+  font-family: var(--font-song);
+  text-rendering: optimizeLegibility;
+}
+
+
 
 .app {
   display: grid;
@@ -129,7 +349,7 @@ img { display: block; max-width: 100%; }
 }
 .chip:hover { color: var(--text); background: rgba(255,255,255,.1); }
 .chip-rm {
-  font-family: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif !important;
+  font-family: var(--font-ui) !important;
   color: #f2f2f2 !important;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.14);
@@ -556,7 +776,7 @@ img { display: block; max-width: 100%; }
   pointer-events: none;
   margin: 0;
 }
-/* 未播放：只显示三角形；播放中：只显示暂停 */
+/* 鏈挱鏀撅細鍙樉绀轰笁瑙掑舰锛涙挱鏀句腑锛氬彧鏄剧ず鏆傚仠 */
 .pbtn.play .icon-play { display: block !important; visibility: visible !important; opacity: 1; }
 .pbtn.play .icon-pause { display: none !important; visibility: hidden !important; opacity: 0; }
 .pbtn.play.is-playing .icon-play,
@@ -712,17 +932,118 @@ input[type="range"]:hover { background:
 .np-sheet.is-open[hidden] { display: flex !important; }
 
 .np-sheet-bg {
-  position: absolute; inset: -40px;
-  background: #1a1a1a center/cover no-repeat;
-  filter: blur(48px) saturate(1.35) brightness(.55);
-  transform: scale(1.12);
-  transition: background-image .4s ease, opacity .3s;
+  position: absolute; inset: 0;
+  overflow: hidden;
+  background: #050508;
+  pointer-events: none;
 }
+.np-fluid-base {
+  position: absolute; inset: -8%;
+  background: radial-gradient(120% 90% at 50% 0%, #1a2740 0%, #0b0d14 55%, #050508 100%);
+  transition: background 1.1s ease;
+  transform: scale(1.05);
+}
+.np-fluid-layer {
+  position: absolute; inset: -25%;
+  filter: blur(72px) saturate(1.55) brightness(1.05);
+  opacity: .95;
+  will-change: filter, transform;
+  transform: scale(1.05);
+  animation: np-fluid-breathe 12s ease-in-out infinite alternate;
+}
+.np-sheet.is-playing .np-fluid-layer {
+  animation-duration: 7s;
+  filter: blur(64px) saturate(1.7) brightness(1.1);
+}
+.np-blob {
+  position: absolute;
+  width: var(--size, 55vmax);
+  height: var(--size, 55vmax);
+  left: 50%;
+  top: 50%;
+  margin: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 30%,
+      color-mix(in srgb, var(--c, #5b8cff) 88%, #fff) 0%,
+      var(--c, #5b8cff) 38%,
+      color-mix(in srgb, var(--c2, var(--c, #5b8cff)) 55%, transparent) 62%,
+      transparent 74%);
+  /* default: gentle wash */
+  opacity: calc(0.5 + var(--pulse, 0) * 0.16 + var(--jump, 0) * 0.1);
+  mix-blend-mode: screen;
+  transform:
+    translate3d(calc(-50% + var(--fx, 0%)), calc(-50% + var(--fy, 0%)), 0)
+    rotate(var(--spin, 0deg))
+    scale(calc(0.97 + var(--pulse, 0) * 0.12 + var(--jump, 0) * 0.26));
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition: background .9s ease;
+  pointer-events: none;
+}
+/* soft playing: dreamy continuous motion, almost no kick pop */
+.np-sheet.is-playing:not(.is-rhythmic) .np-blob {
+  opacity: calc(0.52 + var(--pulse, 0) * 0.18 + var(--jump, 0) * 0.08);
+  transform:
+    translate3d(calc(-50% + var(--fx, 0%)), calc(-50% + var(--fy, 0%)), 0)
+    rotate(var(--spin, 0deg))
+    scale(calc(0.975 + var(--pulse, 0) * 0.11 + var(--jump, 0) * 0.2));
+}
+/* strong rhythm: snappy Apple Music-like kicks + brighter pop */
+.np-sheet.is-rhythmic .np-blob {
+  opacity: calc(0.5 + var(--pulse, 0) * 0.32 + var(--jump, 0) * 0.36);
+  transform:
+    translate3d(calc(-50% + var(--fx, 0%)), calc(-50% + var(--fy, 0%)), 0)
+    rotate(var(--spin, 0deg))
+    scale(calc(0.86 + var(--pulse, 0) * 0.32 + var(--jump, 0) * 1.12));
+  filter: saturate(calc(1 + var(--jump, 0) * 0.25));
+}
+.np-sheet.is-playing:not(.is-rhythmic) .np-fluid-layer {
+  animation-duration: 18s;
+  filter: blur(80px) saturate(1.35) brightness(1.02);
+}
+.np-sheet.is-rhythmic .np-fluid-layer {
+  animation-duration: 4.6s;
+  filter: blur(54px) saturate(1.95) brightness(1.16);
+}
+/* slightly more lively layer when beat peaks */
+.np-sheet.is-rhythmic.is-playing .np-fluid-layer {
+  opacity: calc(0.92 + var(--np-beat, 0) * 0.08);
+}
+.np-blob:nth-child(1) { --size: 72vmax; }
+.np-blob:nth-child(2) { --size: 62vmax; }
+.np-blob:nth-child(3) { --size: 78vmax; }
+.np-blob:nth-child(4) { --size: 54vmax; }
+.np-blob:nth-child(5) { --size: 58vmax; }
+
+.np-fluid-vignette {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(90% 70% at 50% 40%, transparent 20%, rgba(0,0,0,.28) 75%, rgba(0,0,0,.55) 100%);
+  pointer-events: none;
+}
+
+@keyframes np-fluid-breathe {
+  0% { transform: scale(1.02) rotate(0deg); }
+  100% { transform: scale(1.08) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-fluid-layer { animation: none !important; }
+  .np-blob { transition: none; }
+  .np-lyrics-inner .line {
+    transition: opacity .2s ease, color .2s ease !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
+
 .np-sheet-scrim {
   position: absolute; inset: 0;
   background:
-    linear-gradient(180deg, rgba(0,0,0,.35) 0%, rgba(0,0,0,.55) 40%, rgba(0,0,0,.82) 100%),
-    radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.08), transparent 55%);
+    linear-gradient(180deg, rgba(0,0,0,.22) 0%, rgba(0,0,0,.38) 42%, rgba(0,0,0,.72) 100%),
+    radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.06), transparent 55%);
+  pointer-events: none;
 }
 
 .np-sheet-top {
@@ -847,7 +1168,7 @@ input[type="range"]:hover { background:
   display: block !important;
 }
 
-/* Lyrics pane — Apple Music large type */
+/* Lyrics pane — focus cascade (Apple-like depth) */
 .np-lyrics-pane {
   min-height: 0; display: flex; flex-direction: column;
   padding-top: 8px;
@@ -863,39 +1184,72 @@ input[type="range"]:hover { background:
 .np-lyrics {
   flex: 1; min-height: 0;
   overflow: auto;
-  padding: 24px 12px 40vh;
-  scroll-behavior: smooth;
+  padding: 28px 12px 42vh;
+  /* custom JS scroll handles easing/overshoot */
+  scroll-behavior: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.25) transparent;
-  mask-image: linear-gradient(180deg, transparent 0, #000 28px, #000 calc(100% - 48px), transparent);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 28px, #000 calc(100% - 48px), transparent);
+  scrollbar-color: rgba(255,255,255,.22) transparent;
+  mask-image: linear-gradient(180deg, transparent 0, #000 36px, #000 calc(100% - 56px), transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 36px, #000 calc(100% - 56px), transparent);
 }
 .np-lyrics-inner {
   text-align: left;
   line-height: 1.35;
+  padding: 4px 0;
 }
 .np-lyrics-inner .line {
+  --lo: 0.4;
+  --lb: 0.8px;
+  --ls: 0.98;
+  --ly: 0px;
+  --ld: 0ms;
   font-size: clamp(1.35rem, 2.6vw, 2rem);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -.01em;
-  padding: 10px 10px;
+  padding: 11px 12px;
   margin: 0;
-  border-radius: 10px;
-  color: rgba(255,255,255,.28);
-  transition: color .25s ease, transform .25s ease, opacity .25s ease;
+  border-radius: 12px;
+  color: rgba(255,255,255,0.92);
+  opacity: var(--lo);
+  filter: blur(var(--lb));
+  transform: translate3d(0, var(--ly), 0) scale(var(--ls));
+  transform-origin: left center;
+  /* very mild ease, almost no overshoot */
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 0.82, 0.28, 1) var(--ld),
+    filter 0.54s cubic-bezier(0.22, 0.82, 0.28, 1) var(--ld),
+    transform 0.64s cubic-bezier(0.22, 1.08, 0.32, 1) var(--ld),
+    color 0.4s ease var(--ld),
+    font-weight 0.3s ease var(--ld),
+    text-shadow 0.4s ease var(--ld);
   cursor: pointer;
   user-select: none;
+  will-change: transform, opacity, filter;
+  -webkit-font-smoothing: antialiased;
 }
-.np-lyrics-inner .line:hover { color: rgba(255,255,255,.55); }
-.np-lyrics-inner .line.past { color: rgba(255,255,255,.38); font-weight: 600; }
+.np-lyrics-inner .line:hover {
+  /* slight lift without breaking focus hierarchy */
+  opacity: max(var(--lo), 0.55);
+  filter: blur(calc(var(--lb) * 0.35));
+}
+.np-lyrics-inner .line.past {
+  font-weight: 600;
+  color: rgba(255,255,255,0.88);
+}
 .np-lyrics-inner .line.active {
   color: #fff;
   font-weight: 800;
-  transform: scale(1.02);
-  transform-origin: left center;
+  opacity: 1 !important;
+  filter: blur(0) !important;
+  text-shadow:
+    0 0 24px rgba(255,255,255,0.18),
+    0 1px 0 rgba(0,0,0,0.12);
   background: transparent;
 }
-.np-lyrics-inner .line.future { color: rgba(255,255,255,.26); }
+.np-lyrics-inner .line.future {
+  font-weight: 600;
+  color: rgba(255,255,255,0.86);
+}
 .np-lyrics-inner .muted,
 .np-lyrics-inner pre {
   color: rgba(255,255,255,.55);
@@ -903,6 +1257,9 @@ input[type="range"]:hover { background:
   font-weight: 500;
   line-height: 1.7;
   padding: 12px;
+  opacity: 1;
+  filter: none;
+  transform: none;
 }
 
 body.np-open { overflow: hidden; }
@@ -934,9 +1291,10 @@ body.np-open .toast { z-index: 120; }
   .np-lyrics-inner .line {
     text-align: center;
     font-size: clamp(1.2rem, 5vw, 1.6rem);
+    transform-origin: center center;
   }
   .np-lyrics-inner .line.active {
-    transform-origin: center;
+    transform-origin: center center;
   }
   .player-open-detail .open-chevron { opacity: .7; }
 }
@@ -947,3 +1305,346 @@ body.np-open .toast { z-index: 120; }
   .np-cover-wrap { width: min(70vw, 240px); border-radius: 12px; }
 }
 
+
+/* Detail page volume: entire panel is the drag track */
+.np-vol-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+}
+.np-vol-wrap .np-ctrl {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+}
+.np-vol-wrap .np-ctrl .vol-on,
+.np-vol-wrap .np-ctrl .vol-off {
+  display: block;
+  pointer-events: none;
+}
+.np-vol-wrap .np-ctrl.is-open {
+  color: #fff;
+  opacity: 1;
+}
+.np-vol-popover {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  width: 48px;
+  height: 168px;
+  padding: 0;
+  margin: 0;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  display: block;
+  overflow: hidden;
+  z-index: 5;
+  touch-action: none;
+  user-select: none;
+  cursor: ns-resize;
+  animation: npVolIn .16s ease-out;
+}
+.np-vol-popover[hidden] {
+  display: none !important;
+}
+@keyframes npVolIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(.96); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+/* Hit layer covers 100% of panel */
+.np-vol-hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  cursor: ns-resize;
+  touch-action: none;
+  background: transparent;
+  z-index: 2;
+}
+.np-vol-hit:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.4);
+}
+/* Fill grows bottom→top across the full panel height */
+.np-vol-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: var(--vol, 80%);
+  min-height: 0;
+  max-height: 100%;
+  background: linear-gradient(180deg, #ffffff 0%, #ececec 100%);
+  border-radius: 0;
+  pointer-events: none;
+  z-index: 1;
+  transition: height .04s linear;
+}
+.np-vol-fill.is-full {
+  border-radius: 24px;
+  height: 100% !important;
+}
+.np-vol-fill.is-empty {
+  height: 0 !important;
+}
+.np-vol-wrap.is-dragging .np-vol-fill {
+  transition: none;
+}
+.np-vol-knob {
+  position: absolute;
+  left: 50%;
+  bottom: var(--vol, 80%);
+  width: 22px;
+  height: 3px;
+  margin-left: -11px;
+  margin-bottom: -1.5px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  z-index: 3;
+  transition: bottom .04s linear;
+}
+.np-vol-wrap.is-dragging .np-vol-knob {
+  transition: none;
+}
+.np-vol-bar-sr {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.np-ctrl.is-muted {
+  opacity: 0.75;
+}
+@media (max-width: 640px) {
+  .np-vol-popover { width: 46px; height: 156px; }
+}
+
+
+/* =========================================================
+   FINAL FONT POLICY (must stay last — wins over component CSS)
+   正文/标题/歌词中文 → 新宋体
+   小号 UI 文字 → 清晰无衬线 + 更大字号 + 更高对比
+   ========================================================= */
+:root {
+  --font-ui: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-song: "NSimSun", "新宋体", "SimSun", "宋体", "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  --font-display: var(--font-song);
+  --font: var(--font-song);
+  --text-sub: #c8c8c8;
+  --text-dim: #a0a0a0;
+}
+
+html, body {
+  font-family: var(--font-song) !important;
+  color: var(--text);
+}
+
+/* 新宋体：正文、导航、标题、歌词、歌名 */
+.sidebar-card-title,
+.nav-item,
+.hero-meta h1,
+.section-head h2,
+.song-item .title,
+.queue-item .q-title,
+.player-title,
+.np-title,
+.np-lyrics-inner .line,
+.lyrics-inner .line,
+.lyrics-section h2,
+.np-lyrics-head h3,
+.empty-state h3 {
+  font-family: var(--font-song) !important;
+  text-rendering: optimizeLegibility;
+}
+
+/* 小号 UI：清晰无衬线（避免新宋体小字发虚） */
+button,
+input,
+select,
+.chip,
+.chip-tab,
+.chip-rm,
+.chip.primary,
+.muted,
+.small,
+.source-hint,
+.sidebar-footer,
+.sidebar-footer a,
+.sidebar-brand .brand-text,
+.sidebar-card-desc,
+.queue-item .q-sub,
+.song-item .sub,
+.song-item .artist,
+.song-item .actions,
+.song-item .idx,
+.list-head,
+.player-artist,
+.player-timeline,
+.player-right,
+.player-right select,
+.current-source-badge,
+.count-badge,
+.hero-badge,
+.quality-badge,
+.section-sub,
+.toast,
+.np-lyrics-hint,
+.np-artist,
+.np-time,
+.np-time-cur,
+.np-time-dur,
+.np-times,
+.np-sheet-title,
+.np-top-source,
+.np-ctrl,
+.np-icon-btn,
+.empty-state p,
+.lyrics-section .hint,
+.btn-green,
+.btn-ghost,
+.hero-sub {
+  font-family: var(--font-ui) !important;
+  /* Windows 小字用亚像素渲染更清晰，避免 antialiased 发虚 */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: auto;
+}
+
+/* 小号字号下限 ~13px，对比加强 */
+.muted,
+.small,
+.source-hint,
+.sidebar-footer,
+.sidebar-footer a,
+.sidebar-card-desc,
+.queue-item .q-sub,
+.song-item .sub,
+.song-item .artist,
+.player-artist,
+.section-sub,
+.list-head,
+.np-lyrics-hint,
+.empty-state p,
+.hero-sub {
+  font-size: 0.8125rem !important; /* 13px */
+  line-height: 1.45 !important;
+  font-weight: 500 !important;
+  color: #c8c8c8 !important;
+}
+
+.source-hint,
+.sidebar-footer,
+.sidebar-footer a {
+  color: #b0b0b0 !important;
+  font-weight: 600 !important;
+}
+
+.sidebar-brand .brand-text {
+  font-size: 0.8125rem !important;
+  font-weight: 700 !important;
+  color: #f2f2f2 !important;
+  line-height: 1.35 !important;
+}
+
+.chip,
+.chip-tab,
+.chip.primary,
+.current-source-badge,
+.btn-ghost {
+  font-size: 0.8125rem !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.01em;
+}
+
+.chip-rm {
+  font-family: var(--font-ui) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 700 !important;
+  color: #f0f0f0 !important;
+  letter-spacing: 0.02em !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.player-timeline,
+.np-times,
+.np-time,
+.np-time-cur,
+.np-time-dur,
+.count-badge,
+.hero-badge,
+.quality-badge {
+  font-size: 0.75rem !important; /* 12px 时间数字 */
+  font-weight: 600 !important;
+  color: #c0c0c0 !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.np-artist {
+  font-size: 1rem !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+  font-weight: 500 !important;
+}
+
+.np-top-source,
+.np-sheet-title {
+  font-size: 0.8125rem !important;
+  font-weight: 650 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.np-lyrics-hint {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.song-item .idx {
+  font-size: 0.8125rem !important;
+  color: #b8b8b8 !important;
+  font-weight: 600 !important;
+}
+
+.player-right select,
+.quality select {
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: #e0e0e0 !important;
+}
+
+.toast {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+/* 标题/歌词保持新宋体气质与可读字号 */
+.song-item .title,
+.queue-item .q-title,
+.player-title {
+  font-family: var(--font-song) !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+}
+
+.np-lyrics-inner .line {
+  font-family: var(--font-song) !important;
+}
