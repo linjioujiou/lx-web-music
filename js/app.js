@@ -1351,8 +1351,7 @@ function renderQualityOptions(source) {
 }
 function init() {
   loadQueue();
-  loadPlatforms();
-  els.qualitySelect.value = state.quality;
+  loadPlatforms();  // 音质选项由 renderQualityOptions 动态填充并设值
   const vol = Number(localStorage.getItem(VOLUME_KEY) || 80);
   applyVolume(Number.isFinite(vol) ? vol : 80, { persist: false });
   updateModeButton();
