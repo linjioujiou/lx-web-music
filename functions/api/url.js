@@ -13,16 +13,13 @@
  *
  * 解析后端（按优先级）：
  *  1) ikun 赞助音源（已接入）：POST LX_API_BASE + X-Api-Key，body { source, musicId, quality }
- *  2) Huibq: GET HUIBQ_BASE/url/{source}/{songId}/{quality}
- *  3) ikun 免费: GET IKUN_BASE/url?source=&songId=&quality=
+ *  2) ikun 免费: GET IKUN_BASE/url?source=&songId=&quality=
  *  4) fallback：跨平台搜索匹配
  */
 
 // ikun 赞助音源（洛雪脚本风格 HTTP 接口）
 const LX_API_BASE = 'https://c.wwwweb.top/music/url';
 const LX_API_KEY = 'IKM-P29100001-dvH2e0WUwGU169aI-6o';
-const HUIBQ_BASE = 'https://lxmusicapi.onrender.com';
-const HUIBQ_KEY = 'share-v3';
 const IKUN_BASE = 'https://api.ikunshare.com';
 const IKUN_KEY = '';
 
@@ -150,19 +147,6 @@ async function fetchLxPlugin(source, songId, quality) {
   const msg = data?.message || data?.error || 'ikun-sponsor HTTP ' + res.status;
   throw new Error(msg);
 }
-async function fetchHuibq(source, songId, quality) {
-  const q = QUALITY_RANK[quality] > DEFAULT_RANK ? '320k' : quality;
-  const url = `${HUIBQ_BASE}/url/${encodeURIComponent(source)}/${encodeURIComponent(songId)}/${encodeURIComponent(q)}`;
-  const res = await fetch(url, {
-    headers: { 'X-Request-Key': HUIBQ_KEY, 'User-Agent': 'lx-music-web/1.0' },
-  });
-  const data = await res.json().catch(() => ({}));
-  if (data && (data.code === 0 || data.code === 200) && data.url) {
-    return { url: data.url, quality: q, provider: 'huibq', raw: data };
-  }
-  throw new Error(data?.msg || data?.message || `Huibq 返回 code=${data?.code ?? res.status}`);
-}
-
 async function fetchIkun(source, songId, quality) {
   const q = QUALITY_RANK[quality] > DEFAULT_RANK ? '320k' : quality;
   const url = `${IKUN_BASE}/url?source=${encodeURIComponent(source)}&songId=${encodeURIComponent(songId)}&quality=${encodeURIComponent(q)}`;
@@ -255,13 +239,7 @@ export async function onRequest(context) {
     } catch (e) { errors.push(`lx-plugin/${quality}: ${e.message}`); }
   }
 
-  // 2) Huibq
-  try {
-    const r = await fetchHuibq(source, songId, quality);
-    return ok(r, source, songId);
-  } catch (e) { errors.push(`huibq/${quality}: ${e.message}`); }
-
-  // 3) ikun
+  // 2) ikun 免费
   try {
     const r = await fetchIkun(source, songId, quality);
     return ok(r, source, songId);
@@ -282,7 +260,7 @@ export async function onRequest(context) {
       if (match) {
         const fbId = match.hash || match.songmid || match.id;
         const fbData = { platform: source, quality, songInfo: { ...match, musicId: fbId } };
-        for (const fn of [fetchHuibq, fetchIkun]) {
+        for (const fn of [fetchLxPlugin, fetchIkun]) {
           try {
             const r = await fn(source, fbId, quality);
             return ok(r, source, fbId);

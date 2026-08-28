@@ -23,6 +23,24 @@ const SOURCE_LABELS = {
   kg: '酷狗音乐',
   mg: '咪咕音乐',
 };
+// 各平台可用音质（启动时从 /api/platforms 拉取，未拉取到则用兜底）
+let PLATFORM_QUALITY = {
+  wy: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'master'],
+  tx: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'atmos_plus', 'master'],
+  kg: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'master'],
+  kw: ['128k', '320k', 'flac', 'flac24bit', 'hires'],
+  mg: ['128k', '320k', 'flac'],
+};
+const QUALITY_LABELS = {
+  '128k': '标准',
+  '320k': '较高',
+  flac: '无损',
+  flac24bit: 'Hi-Res',
+  hires: 'Hi-Res',
+  atmos: '全景声',
+  atmos_plus: '全景声+',
+  master: '母带',
+};
 
 const MODE_PATHS = {
   // 顺序播放：列表 + 播放
@@ -1097,6 +1115,7 @@ function bindEvents() {
       return;
     }
     state.source = next;
+    renderQualityOptions(next);
     applySourceHighlight(next);
     toast('已切换到 ' + (SOURCE_LABELS[next] || next), 1600);
     if (els.input.value.trim()) doSearch(els.input.value);
@@ -1300,8 +1319,39 @@ function bindEvents() {
   }
 }
 
+// 拉取各平台音质映射；失败时沿用内置兜底 PLATFORM_QUALITY
+async function loadPlatforms() {
+  try {
+    const res = await fetch('/api/platforms');
+    const data = await res.json();
+    if (data && data.code === 0 && Array.isArray(data.platforms)) {
+      const map = {};
+      for (const p of data.platforms) {
+        if (p.id && Array.isArray(p.qualities)) map[p.id] = p.qualities.map((q) => q.id || q);
+      }
+      if (Object.keys(map).length) PLATFORM_QUALITY = map;
+      if (data.qualityLabels) Object.assign(QUALITY_LABELS, data.qualityLabels);
+    }
+  } catch {}
+  renderQualityOptions(state.source);
+}
+
+// 按当前平台动态渲染音质下拉；保留上次选择，不存在时回退到 320k
+function renderQualityOptions(source) {
+  const src = source || state.source || 'tx';
+  const list = PLATFORM_QUALITY[src] || ['128k', '320k', 'flac'];
+  const prev = state.quality || '320k';
+  els.qualitySelect.innerHTML = list
+    .map((q) => '<option value="' + q + '">' + (QUALITY_LABELS[q] || q) + '</option>')
+    .join('');
+  const keep = list.includes(prev) ? prev : (list.includes('320k') ? '320k' : list[list.length - 1]);
+  state.quality = keep;
+  els.qualitySelect.value = keep;
+  localStorage.setItem(QUALITY_KEY, keep);
+}
 function init() {
   loadQueue();
+  loadPlatforms();
   els.qualitySelect.value = state.quality;
   const vol = Number(localStorage.getItem(VOLUME_KEY) || 80);
   applyVolume(Number.isFinite(vol) ? vol : 80, { persist: false });
