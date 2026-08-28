@@ -9,7 +9,7 @@
 - 多音源搜索：网易云 / QQ 音乐 / 酷我 / 酷狗 / 咪咕
 - 播放地址解析：优先 `lxmusicapi.onrender.com`（Huibq），失败回退 `api.ikunshare.com`（ikun）
 - 播放列表（localStorage 持久化）、上一曲/下一曲、顺序/循环/单曲/随机
-- 音质选择（128k / 320k）
+- 音质选择（128k / 320k / 无损），按歌曲可用音质智能降级
 - 歌词展示（网易云 / QQ / 酷我，尽力而为）
 - 响应式深色 UI，支持 Media Session（部分浏览器锁屏控制）
 
@@ -34,7 +34,7 @@
 ├── functions/
 │   └── api/
 │       ├── search.js   # GET /api/search?q=&source=&limit=
-│       ├── url.js      # GET /api/url?source=&id=&quality=
+│       ├── url.js      # 解析播放地址（POST source_data / GET 兼容）
 │       └── lyric.js    # GET /api/lyric?source=&id=
 ├── _headers
 ├── package.json
@@ -91,13 +91,32 @@ Dashboard → Pages → Create → **Upload assets**，上传整个项目目录�
 | `source` | `wy` `tx` `kw` `kg` `mg` |
 | `limit` | 1–50，默认 20 |
 
-### `GET /api/url`
+### `POST /api/url`（推荐，洛雪风格）
+
+Body JSON：
+
+```json
+{
+  "source_data": {
+    "platform": "wy",
+    "quality": "320k",
+    "songInfo": { "musicId": "123", "name": "...", "types": [{"type":"128k"}, {"type":"320k"}] }
+  },
+  "quality": "320k",
+  "fallback": { "enabled": true, "title": "...", "artist": "..." }
+}
+```
+
+后端会从 `songInfo.types` 提取可用音质，按等级 128k=10 → 320k=30 → flac=50 → flac24bit=70 → master=80 选择不超过期望上限的最高音质。
+
+### `GET /api/url`（兼容旧前端）
 
 | 参数 | 说明 |
 |------|------|
-| `source` | 音源代码 |
-| `id` / `songmid` / `hash` | 歌曲标识 |
-| `quality` | `128k` / `320k`（Huibq 侧主要为这两种） |
+| 'source' | 音源代码 |
+| 'id' / 'songmid' / 'hash' | 歌曲标识 |
+| 'quality' | '128k' / '320k' / 'flac' 等 |
+| 'types' | 可选，逗号分隔的可用音质 |
 
 返回示例：
 
@@ -108,10 +127,10 @@ Dashboard → Pages → Create → **Upload assets**，上传整个项目目录�
   "quality": "320k",
   "provider": "huibq",
   "source": "wy",
-  "songId": "123"
+  "songId": "123",
+  "sourceId": ""
 }
 ```
-
 ### `GET /api/lyric`
 
 | 参数 | 说明 |
@@ -124,7 +143,7 @@ Dashboard → Pages → Create → **Upload assets**，上传整个项目目录�
 1. **第三方音源可用性**：Huibq 部署在 Render 上，可能有冷启动或限流；ikun 为备用。若均失败，页面会提示解析错误。
 2. **CORS / 防盗链**：播放地址由第三方 CDN 提供，极少数链接可能因防盗链无法在浏览器直接播放。
 3. **合规**：本项目不托管音乐文件，仅做检索与链接解析的前端演示；请合理使用，勿高频爬取。
-4. **自定义音源 Key**：若你自建了 Huibq/keep-alive 服务，可修改 `functions/api/url.js` 中的 `HUIBQ_BASE` / `HUIBQ_KEY`。
+4. **自定义解析接口**：若你部署了洛雪音源插件，可设置 `functions/api/url.js` 顶部的 `LX_API_BASE` 指向其 HTTP 接口（POST source_data）；也可修改 `HUIBQ_BASE` / `HUIBQ_KEY` 调整 fallback 后端。
 
 ## 相关链接
 

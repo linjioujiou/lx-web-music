@@ -200,9 +200,29 @@ async function apiSearch(keyword, source) {
 
 async function apiUrl(song, quality) {
   const id = playIdOf(song);
-  const params = new URLSearchParams({ source: song.source, id, quality: quality || state.quality });
-  if (song.hash) params.set('hash', song.hash);
-  const res = await fetch(`/api/url?${params}`);
+  const q = quality || state.quality;
+  // 构造洛雪风格 source_data，透传 types 让后端做音质智能降级
+  const songInfo = {
+    name: song.title || '',
+    singer: song.artist || '',
+    album: song.album || '',
+    musicId: id,
+    songmid: song.source === 'kg' ? '' : (song.songmid || id),
+    hash: song.hash || '',
+    img: song.artwork || '',
+    duration: song.duration || 0,
+  };
+  if (Array.isArray(song.types) && song.types.length) songInfo.types = song.types;
+  const body = {
+    source_data: { platform: song.source, quality: q, songInfo },
+    quality: q,
+    fallback: { enabled: true, title: song.title, artist: song.artist },
+  };
+  const res = await fetch('/api/url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
   const data = await res.json();
   if (!res.ok || data.code !== 0 || !data.url) {
     throw new Error(data.errors?.join('; ') || data.message || '无法获取播放地址');

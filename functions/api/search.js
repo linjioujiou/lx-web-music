@@ -80,6 +80,12 @@ async function searchWy(keyword, limit) {
     let artwork = albumObj.picUrl || s.al?.picUrl || '';
     if (artwork) artwork = `${artwork}${artwork.includes('?') ? '&' : '?'}param=300y300`;
     const durationMs = s.duration || s.dt || 0;
+    const priv = s.privilege || {};
+    const types = [];
+    if (s.l && s.l.size > 0) types.push({ type: '128k', size: s.l.size });
+    if (s.h && s.h.size > 0 && (priv.maxbr || 0) >= 320000) types.push({ type: '320k', size: s.h.size });
+    if (s.sq && s.sq.size > 0 && (priv.maxbr || 0) >= 999000) types.push({ type: 'flac', size: s.sq.size });
+    if (s.hr && s.hr.size > 0 && priv.maxBrLevel === 'hires') types.push({ type: 'flac24bit', size: s.hr.size });
     return {
       id: String(s.id),
       songmid: String(s.id),
@@ -89,6 +95,7 @@ async function searchWy(keyword, limit) {
       album: albumObj.name || '',
       duration: Math.floor(durationMs / 1000),
       artwork,
+      types,
       source: 'wy',
       sourceLabel: SOURCE_LABELS.wy,
     };
@@ -124,6 +131,12 @@ async function searchTx(keyword, limit) {
     const artwork = albumMid
       ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg`
       : '';
+    const file = s.file || {};
+    const types = [];
+    if (Number(file.size_128mp3) > 0) types.push({ type: '128k', size: Number(file.size_128mp3) });
+    if (Number(file.size_320mp3) > 0) types.push({ type: '320k', size: Number(file.size_320mp3) });
+    if (Number(file.size_flac) > 0) types.push({ type: 'flac', size: Number(file.size_flac) });
+    if (Number(file.size_hires) > 0) types.push({ type: 'flac24bit', size: Number(file.size_hires) });
     return {
       id: mid,
       songmid: mid,
@@ -133,6 +146,7 @@ async function searchTx(keyword, limit) {
       album: s.album?.name || s.albumname || '',
       duration: s.interval || 0,
       artwork,
+      types,
       source: 'tx',
       sourceLabel: SOURCE_LABELS.tx,
     };
@@ -155,6 +169,7 @@ async function searchKw(keyword, limit) {
       artwork = `https://img2.kuwo.cn/star/albumcover/${artwork}`;
     }
     const duration = parseInt(s.DURATION || s.duration || 0, 10) || 0;
+    const types = [{ type: '128k' }, { type: '320k' }];
     return {
       id: rid,
       songmid: rid,
@@ -164,6 +179,7 @@ async function searchKw(keyword, limit) {
       album: s.ALBUM || s.album || '',
       duration,
       artwork,
+      types,
       source: 'kw',
       sourceLabel: SOURCE_LABELS.kw,
     };
@@ -194,6 +210,10 @@ async function searchKg(keyword, limit) {
     const duration = s.duration || s.timeLength || s.Duration || 0;
     let artwork = s.album_img || s.imgUrl || s.Image || s.trans_param?.union_cover || '';
     if (artwork) artwork = artwork.replace('{size}', '400');
+    const types = [{ type: '128k' }];
+    if (s.hash_320 || s['320hash']) types.push({ type: '320k' });
+    if (s.sqhash || s.SQFileHash) types.push({ type: 'flac' });
+    if (s.hash_high || s.HQFileHash) types.push({ type: 'flac24bit' });
     return {
       id: hash || String(s.audio_id || s.AlbumID || s.ID || ''),
       songmid: hash || String(s.audio_id || s.ID || ''),
@@ -203,6 +223,7 @@ async function searchKg(keyword, limit) {
       album: s.album_name || s.AlbumName || '',
       duration,
       artwork,
+      types,
       source: 'kg',
       sourceLabel: SOURCE_LABELS.kg,
     };
@@ -236,6 +257,7 @@ async function searchMg(keyword, limit) {
     const artists = Array.isArray(s.artists)
       ? s.artists.map((a) => a.name).filter(Boolean).join(' / ')
       : s.singerName || s.artist || '';
+    const types = [{ type: '128k' }, { type: '320k' }];
     return {
       id: String(songmid),
       songmid: String(songmid),
@@ -245,6 +267,7 @@ async function searchMg(keyword, limit) {
       album: s.albumName || s.album || '',
       duration: 0,
       artwork: s.cover || s.pic || s.imgItems?.[0]?.img || '',
+      types,
       source: 'mg',
       sourceLabel: SOURCE_LABELS.mg,
     };
