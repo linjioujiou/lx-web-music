@@ -709,7 +709,11 @@ async function playCurrent() {
   if (els.vinyl) els.vinyl.classList.remove('playing');
   toast('解析播放地址：' + song.title, 1800);
   try {
-    const data = await apiUrl(song, state.quality);
+    // 播放下一首时以界面当前选择为准，避免状态和下拉框不同步
+    const selectedQuality = els.qualitySelect.value || state.quality || '320k';
+    state.quality = selectedQuality;
+    localStorage.setItem(QUALITY_KEY, selectedQuality);
+    const data = await apiUrl(song, selectedQuality);
     audio.src = data.url;
     await audio.play();
     state.playing = true;

@@ -25,7 +25,7 @@ const IKUN_KEY = '';
 
 const ALLOWED_SOURCES = new Set(['kw', 'kg', 'tx', 'wy', 'mg']);
 const ALLOWED_QUALITY = new Set([
-  '128k', '192k', '320k', 'hq', 'sq', 'flac', 'ape', 'wav', 'hr', 'hires', 'flac24bit', 'master',
+  '128k', '192k', '320k', 'hq', 'sq', 'flac', 'ape', 'wav', 'hr', 'hires', 'flac24bit', 'atmos', 'atmos_plus', 'master',
 ]);
 
 // 音质等级表（值越大音质越高），与洛雪插件 at() 内部一致
@@ -110,11 +110,9 @@ function pickQuality(sourceData, requested, preferred) {
   return result;
 }
 
-// 把期望音质约束到 320k 及以下（洛雪插件对非前端来源也这么做）
+// 前端明确选择的音质直接交给 ikun；接口会按平台能力返回实际音质。
 function clampHostQuality(sd, requested, pref) {
-  const rank = QUALITY_RANK[requested] || DEFAULT_RANK;
-  if (rank > DEFAULT_RANK) return pickQuality(sd, requested, '320k');
-  return pickQuality(sd, requested, pref);
+  return requested || '320k';
 }
 
 function buildSongId(sd) {
@@ -148,14 +146,14 @@ async function fetchLxPlugin(source, songId, quality) {
   throw new Error(msg);
 }
 async function fetchIkun(source, songId, quality) {
-  const q = QUALITY_RANK[quality] > DEFAULT_RANK ? '320k' : quality;
+  const q = quality;
   const url = `${IKUN_BASE}/url?source=${encodeURIComponent(source)}&songId=${encodeURIComponent(songId)}&quality=${encodeURIComponent(q)}`;
   const headers = { 'User-Agent': 'lx-music-web/1.0' };
   if (IKUN_KEY) headers['X-Request-Key'] = IKUN_KEY;
   const res = await fetch(url, { headers });
   const data = await res.json().catch(() => ({}));
   if (data && (data.code === 200 || data.code === 0) && data.url) {
-    return { url: data.url, quality: q, provider: 'ikun', raw: data };
+    return { url: data.url, quality: data.quality || q, provider: 'ikun', raw: data };
   }
   throw new Error(data?.msg || data?.message || `ikun 返回 code=${data?.code ?? res.status}`);
 }
@@ -190,7 +188,7 @@ export async function onRequest(context) {
       return json({ code: 400, message: 'invalid source_data: missing platform or songInfo' }, 400);
     }
     fallback = body.fallback;
-    requested = body.quality || sourceData.quality || '320k';
+    requested = String(body.quality || sourceData.quality || '320k').toLowerCase();
     pref = requested; // 前端来源: 用期望音质作为上限
   } else if (request.method === 'GET') {
     // 兼容旧前端: ?source=&id=&quality=&types=
