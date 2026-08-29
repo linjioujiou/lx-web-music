@@ -143,6 +143,7 @@ const els = {
 
 let toastTimer = null;
 let fluidBg = null;
+let qualityFallbackActive = false;
 
 function toast(msg, ms = 2600) {
   els.toast.textContent = msg;
@@ -700,6 +701,40 @@ function playSong(song) {
   addToQueue(song, true);
 }
 
+function playbackQualityLadder(source, requested) {
+  const list = PLATFORM_QUALITY[source] || ['128k', '320k', 'flac'];
+  const index = list.indexOf(requested);
+  if (index >= 0) return list.slice(0, index + 1).reverse();
+  return [requested, ...list.slice().reverse().filter((quality) => quality !== requested)];
+}
+
+function playResolvedUrl(url, timeoutMs = 15000) {
+  const playbackUrl = location.protocol === 'https:' && url.startsWith('http:')
+    ? 'https:' + url.slice(5)
+    : url;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      audio.removeEventListener('playing', onPlaying);
+      audio.removeEventListener('error', onError);
+      if (error) reject(error);
+      else resolve();
+    };
+    const onPlaying = () => finish();
+    const onError = () => finish(new Error('音频链接加载失败'));
+    const timer = setTimeout(() => finish(new Error('音频加载超时')), timeoutMs);
+
+    audio.addEventListener('playing', onPlaying, { once: true });
+    audio.addEventListener('error', onError, { once: true });
+    audio.src = playbackUrl;
+    audio.load();
+    audio.play().catch(finish);
+  });
+}
+
 async function playCurrent() {
   const song = state.queue[state.currentIndex];
   if (!song) return;
@@ -707,24 +742,53 @@ async function playCurrent() {
   renderQueue();
   renderSongs();
   if (els.vinyl) els.vinyl.classList.remove('playing');
-  toast('解析播放地址：' + song.title, 1800);
+
+  const selectedQuality = els.qualitySelect.value || state.quality || '320k';
+  state.quality = selectedQuality;
+  localStorage.setItem(QUALITY_KEY, selectedQuality);
+  const qualityCandidates = playbackQualityLadder(song.source, selectedQuality);
+  const attemptedUrls = new Set();
+  let lastError = null;
+
+  qualityFallbackActive = true;
   try {
-    // 播放下一首时以界面当前选择为准，避免状态和下拉框不同步
-    const selectedQuality = els.qualitySelect.value || state.quality || '320k';
-    state.quality = selectedQuality;
-    localStorage.setItem(QUALITY_KEY, selectedQuality);
-    const data = await apiUrl(song, selectedQuality);
-    audio.src = data.url;
-    await audio.play();
-    state.playing = true;
-    updatePlayUI();
-    toast('正在播放 · ' + (data.provider || 'lx-source') + ' · ' + (data.quality || state.quality), 2000);
-    apiLyric(song).then(renderLyrics);
-  } catch (err) {
-    console.error(err);
+    for (let index = 0; index < qualityCandidates.length; index += 1) {
+      const quality = qualityCandidates[index];
+      toast('解析播放地址：' + song.title + ' · ' + (QUALITY_LABELS[quality] || quality), 1800);
+      try {
+        const data = await apiUrl(song, quality);
+        const actualQuality = data.quality || quality;
+        const actualIndex = qualityCandidates.indexOf(actualQuality);
+        if (actualIndex > index) index = actualIndex;
+        if (!data.url || attemptedUrls.has(data.url)) continue;
+        attemptedUrls.add(data.url);
+        await playResolvedUrl(data.url);
+
+        state.playing = true;
+        updatePlayUI();
+        const downgraded = actualQuality !== selectedQuality;
+        toast(
+          downgraded
+            ? '当前音质不可用，已自动降级至 ' + (QUALITY_LABELS[actualQuality] || actualQuality)
+            : '正在播放 · ' + (data.provider || 'lx-source') + ' · ' + (QUALITY_LABELS[actualQuality] || actualQuality),
+          2600
+        );
+        apiLyric(song).then(renderLyrics);
+        return;
+      } catch (error) {
+        lastError = error;
+        console.warn('音质播放失败，尝试降级：', quality, error);
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      }
+    }
+
     state.playing = false;
     updatePlayUI();
-    toast('播放失败：' + (err.message || err));
+    toast('所有音质均播放失败：' + (lastError?.message || '未知错误'));
+  } finally {
+    qualityFallbackActive = false;
   }
 }
 
@@ -1222,7 +1286,9 @@ function bindEvents() {
   audio.addEventListener('ended', playNext);
   audio.addEventListener('play', () => { state.playing = true; updatePlayUI(); });
   audio.addEventListener('pause', () => { state.playing = false; updatePlayUI(); });
-  audio.addEventListener('error', () => toast('音频加载失败，可能是链接失效或跨域限制'));
+  audio.addEventListener('error', () => {
+    if (!qualityFallbackActive) toast('音频加载失败，可能是链接失效或跨域限制');
+  });
 
   // Now-playing detail sheet
   const togglePlay = async () => {

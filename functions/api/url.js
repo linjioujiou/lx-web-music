@@ -7,14 +7,12 @@
  *     与洛雪插件 /api/music/url 一致；songInfo 可带 types/qualitys 表示可用音质。
  *  2) GET 兼容旧前端: ?source=wy&id=xxx&quality=320k&types=128k,320k
  *
- * 音质策略移植自插件的 at() 函数：
- *  按 128k=10 → 320k=30 → flac=50 → flac24bit/hires=70 → master=80 等级，
- *  从歌曲实际可用音质里选「不超过期望上限的最高音质」，期望 >320k 时降级到 320k。
+ * 音质策略：先请求用户选择的音质；失败后按当前平台支持列表逐级降低，直到成功。
  *
  * 解析后端（按优先级）：
  *  1) ikun 赞助音源（已接入）：POST LX_API_BASE + X-Api-Key，body { source, musicId, quality }
  *  2) ikun 免费: GET IKUN_BASE/url?source=&songId=&quality=
- *  4) fallback：跨平台搜索匹配
+ *  3) fallback：跨平台搜索匹配
  */
 
 // ikun 赞助音源（洛雪脚本风格 HTTP 接口）
@@ -28,10 +26,19 @@ const ALLOWED_QUALITY = new Set([
   '128k', '192k', '320k', 'hq', 'sq', 'flac', 'ape', 'wav', 'hr', 'hires', 'flac24bit', 'atmos', 'atmos_plus', 'master',
 ]);
 
+const PLATFORM_QUALITY = {
+  wy: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'master'],
+  tx: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'atmos_plus', 'master'],
+  kg: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'master'],
+  kw: ['128k', '320k', 'flac', 'flac24bit', 'hires'],
+  mg: ['128k', '320k', 'flac'],
+};
+
 // 音质等级表（值越大音质越高），与洛雪插件 at() 内部一致
 const QUALITY_RANK = {
   '128k': 10, '192k': 20, '320k': 30, hq: 30, sq: 50, flac: 50,
-  ape: 50, wav: 50, hr: 70, hires: 70, 'flac24bit': 70, master: 80,
+  ape: 50, wav: 50, hr: 70, hires: 70, 'flac24bit': 70,
+  atmos: 75, atmos_plus: 76, master: 80,
 };
 const DEFAULT_RANK = 30; // 320k
 
@@ -59,60 +66,16 @@ function corsPreflight() {
   });
 }
 
-/**
- * 从 songInfo / source_data 各处收集可用音质（types、qualitys、meta 等）。
- * 直接移植自插件 at() 的提取逻辑。
- */
-function collectAvailableQualities(sd) {
-  const info = sd.songInfo || {};
-  const sources = [
-    sd.types, sd._types, sd.qualitys, sd._qualitys, sd.meta?.qualitys, sd.meta?._qualitys,
-    info.types, info._types, info.qualitys, info._qualitys,
-    info.meta?.qualitys, info.meta?._qualitys,
-  ];
-  const out = [];
-  for (const v of sources) {
-    if (Array.isArray(v)) {
-      for (const it of v) {
-        if (typeof it === 'string') out.push(it);
-        else if (it && typeof it === 'object') out.push(it.type || it.quality || '');
-      }
-    } else if (v && typeof v === 'object') {
-      out.push(...Object.keys(v));
-    } else if (typeof v === 'string') {
-      out.push(...v.split(','));
-    }
-  }
-  const uniq = [...new Set(out.map((q) => (q ? q.toLowerCase() : '')))].filter((q) => q && QUALITY_RANK[q]);
-  // 按等级从高到低排序
-  uniq.sort((a, b) => QUALITY_RANK[b] - QUALITY_RANK[a]);
-  return uniq;
-}
+function qualityLadder(source, requested) {
+  const platformQualities = PLATFORM_QUALITY[source] || ['128k', '320k', 'flac'];
+  const requestedIndex = platformQualities.indexOf(requested);
+  if (requestedIndex >= 0) return platformQualities.slice(0, requestedIndex + 1).reverse();
 
-/**
- * 音质智能降级 —— 移植自插件 at(sourceData, requested, preferred)。
- * requested: 前端/调用方期望音质；preferred: 用户设置上限（默认 320k）。
- * 有可用音质时，选「不超过 preferred 上限的最高可用」；否则退到 requested/preferred。
- */
-function pickQuality(sourceData, requested, preferred) {
-  let result = requested || '320k';
-  const pref = preferred || '320k';
-  const avail = collectAvailableQualities(sourceData);
-  if (avail.length > 0) {
-    const cap = QUALITY_RANK[pref] || DEFAULT_RANK;
-    const within = avail.filter((q) => QUALITY_RANK[q] <= cap);
-    result = within.length > 0 ? within[0] : avail[avail.length - 1];
-  } else {
-    const cur = QUALITY_RANK[result] || DEFAULT_RANK;
-    const cap = QUALITY_RANK[pref] || DEFAULT_RANK;
-    if (cur > cap) result = pref;
-  }
-  return result;
-}
-
-// 前端明确选择的音质直接交给 ikun；接口会按平台能力返回实际音质。
-function clampHostQuality(sd, requested, pref) {
-  return requested || '320k';
+  const requestedRank = QUALITY_RANK[requested] || DEFAULT_RANK;
+  const lowerQualities = platformQualities
+    .filter((quality) => (QUALITY_RANK[quality] || 0) < requestedRank)
+    .reverse();
+  return [requested, ...lowerQualities.filter((quality) => quality !== requested)];
 }
 
 function buildSongId(sd) {
@@ -158,6 +121,30 @@ async function fetchIkun(source, songId, quality) {
   throw new Error(data?.msg || data?.message || `ikun 返回 code=${data?.code ?? res.status}`);
 }
 
+async function resolveWithQualityFallback(source, songId, requestedQuality, errors, prefix = '') {
+  const attemptedQualities = [];
+  for (const quality of qualityLadder(source, requestedQuality)) {
+    attemptedQualities.push(quality);
+
+    if (LX_API_BASE) {
+      try {
+        const result = await fetchLxPlugin(source, songId, quality);
+        return { ...result, requestedQuality, attemptedQualities };
+      } catch (error) {
+        errors.push(`${prefix}lx-plugin/${quality}: ${error.message}`);
+      }
+    }
+
+    try {
+      const result = await fetchIkun(source, songId, quality);
+      return { ...result, requestedQuality, attemptedQualities };
+    } catch (error) {
+      errors.push(`${prefix}ikun/${quality}: ${error.message}`);
+    }
+  }
+  return null;
+}
+
 function ok(result, source, songId) {
   return json({
     code: 0,
@@ -167,6 +154,9 @@ function ok(result, source, songId) {
     source,
     songId,
     sourceId: result.sourceId || '',
+    requestedQuality: result.requestedQuality || result.quality,
+    downgraded: Boolean(result.requestedQuality && result.quality !== result.requestedQuality),
+    attemptedQualities: result.attemptedQualities || [result.quality],
   });
 }
 
@@ -174,7 +164,7 @@ export async function onRequest(context) {
   const { request } = context;
   if (request.method === 'OPTIONS') return corsPreflight();
 
-  let sourceData, fallback, requested, pref;
+  let sourceData, fallback, requested;
 
   if (request.method === 'POST') {
     // 洛雪插件风格: body { source_data, fallback, quality }
@@ -189,7 +179,6 @@ export async function onRequest(context) {
     }
     fallback = body.fallback;
     requested = String(body.quality || sourceData.quality || '320k').toLowerCase();
-    pref = requested; // 前端来源: 用期望音质作为上限
   } else if (request.method === 'GET') {
     // 兼容旧前端: ?source=&id=&quality=&types=
     const { searchParams } = new URL(request.url);
@@ -212,7 +201,6 @@ export async function onRequest(context) {
       types: typesRaw ? typesRaw.split(',').map((t) => ({ type: t })) : undefined,
     };
     sourceData = { platform: source, quality: requested, songInfo };
-    pref = requested; // GET 来源也视为前端,上限即期望音质
   } else {
     return json({ code: 405, message: 'Method Not Allowed' }, 405);
   }
@@ -225,25 +213,12 @@ export async function onRequest(context) {
   const songId = buildSongId(sourceData);
   if (!songId) return json({ code: 400, message: '缺少歌曲 id / songmid / hash' }, 400);
 
-  // 音质智能降级
-  const quality = clampHostQuality(sourceData, requested, pref);
+  const quality = requested;
   const errors = [];
+  const resolved = await resolveWithQualityFallback(source, songId, quality, errors);
+  if (resolved) return ok(resolved, source, songId);
 
-  // 1) 洛雪插件接口（若配置）
-  if (LX_API_BASE) {
-    try {
-      const r = await fetchLxPlugin(source, songId, quality);
-      return ok(r, source, songId);
-    } catch (e) { errors.push(`lx-plugin/${quality}: ${e.message}`); }
-  }
-
-  // 2) ikun 免费
-  try {
-    const r = await fetchIkun(source, songId, quality);
-    return ok(r, source, songId);
-  } catch (e) { errors.push(`ikun/${quality}: ${e.message}`); }
-
-  // 4) fallback：跨平台搜索匹配（简化版，需要标题+歌手）
+  // 3) fallback：跨平台搜索匹配（简化版，需要标题+歌手）
   if (fallback && fallback.enabled && fallback.title) {
     try {
       const query = `${fallback.title} ${fallback.artist || ''}`.trim();
@@ -257,13 +232,8 @@ export async function onRequest(context) {
       );
       if (match) {
         const fbId = match.hash || match.songmid || match.id;
-        const fbData = { platform: source, quality, songInfo: { ...match, musicId: fbId } };
-        for (const fn of [fetchLxPlugin, fetchIkun]) {
-          try {
-            const r = await fn(source, fbId, quality);
-            return ok(r, source, fbId);
-          } catch (e) { errors.push(`fallback/${fn.name}: ${e.message}`); }
-        }
+        const fallbackResult = await resolveWithQualityFallback(source, fbId, quality, errors, 'fallback/');
+        if (fallbackResult) return ok(fallbackResult, source, fbId);
       }
     } catch (e) { errors.push(`fallback: ${e.message}`); }
   }
