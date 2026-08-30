@@ -277,7 +277,7 @@ async function apiLyric(song) {
   const id = playIdOf(song);
   const params = new URLSearchParams({ source: song.source, id });
   try {
-    const res = await fetch(`/api/lyric?${params}`);
+    const res = await fetch(`/api/lyric?${params}`, { cache: 'no-store' });
     const data = await res.json();
     return data.lyric || '';
   } catch { return ''; }

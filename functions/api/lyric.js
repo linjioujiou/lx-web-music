@@ -26,6 +26,23 @@ function corsPreflight() {
   });
 }
 
+async function fetchJson(url, headers = {}) {
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      ...headers,
+    },
+  });
+  if (!res.ok) throw new Error(`歌词接口 HTTP ${res.status}`);
+  return res.json();
+}
+
+function decodeBase64Utf8(value) {
+  const binary = atob(value);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
 async function lyricWy(id) {
   const url = `https://music.163.com/api/song/lyric?id=${encodeURIComponent(id)}&lv=1&kv=1&tv=-1`;
   const res = await fetch(url, {
@@ -43,34 +60,17 @@ async function lyricTx(mid) {
   const url =
     `https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg?songmid=${encodeURIComponent(mid)}` +
     `&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-      Referer: 'https://y.qq.com/',
-    },
-  });
-  const data = await res.json();
+  const data = await fetchJson(url, { Referer: 'https://y.qq.com/' });
   if (!data?.lyric) return '';
-  // QQ returns base64 lyric
-  try {
-    const binary = atob(data.lyric);
-    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    return new TextDecoder('utf-8').decode(bytes);
-  } catch {
-    return data.lyric;
-  }
+  return decodeBase64Utf8(data.lyric);
 }
 
 async function lyricKw(id) {
   const rid = String(id).replace(/^MUSIC_/, '');
-  const url = `https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=${encodeURIComponent(rid)}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0',
-      Referer: 'https://www.kuwo.cn/',
-    },
-  });
-  const data = await res.json();
+  const data = await fetchJson(
+    `https://www.kuwo.cn/openapi/v1/www/lyric/getlyric?musicId=${encodeURIComponent(rid)}`,
+    { Referer: `https://www.kuwo.cn/play_detail/${rid}/` }
+  );
   const list = data?.data?.lrclist || [];
   if (!list.length) return '';
   return list
@@ -87,8 +87,21 @@ async function lyricKw(id) {
 }
 
 async function lyricKg(hash) {
-  // Kugou lyric needs accesskey from search; best-effort empty
-  return '';
+  const keyword = encodeURIComponent('');
+  const search = await fetchJson(
+    `https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&keyword=${keyword}&hash=${encodeURIComponent(hash)}`,
+    { Referer: 'https://www.kugou.com/' }
+  );
+  const candidate = search?.candidates?.[0];
+  if (!candidate?.id || !candidate?.accesskey) return '';
+
+  const data = await fetchJson(
+    `https://lyrics.kugou.com/download?ver=1&client=pc&id=${encodeURIComponent(candidate.id)}` +
+      `&accesskey=${encodeURIComponent(candidate.accesskey)}&fmt=lrc&charset=utf8`,
+    { Referer: 'https://www.kugou.com/' }
+  );
+  if (!data?.content) return '';
+  return decodeBase64Utf8(data.content);
 }
 
 const LYRIC_FETCHERS = {
