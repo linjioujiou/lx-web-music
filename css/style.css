@@ -2236,3 +2236,21 @@ html, body {
   .np-ctrl.play { width: 58px; height: 58px; }
   .np-cover-wrap { width: min(68vw, 250px); }
 }
+
+/* Play states: keep the glyph direct, without a white plate behind it. */
+.pbtn.play,
+.np-ctrl.play {
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+.pbtn.play:hover,
+.np-ctrl.play:hover {
+  background: rgba(255,255,255,.08);
+  box-shadow: none;
+  color: inherit;
+}
+.pbtn.play.is-loading::after {
+  border-color: rgba(255,255,255,.24);
+  border-top-color: currentColor;
+}
