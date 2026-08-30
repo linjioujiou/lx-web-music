@@ -461,6 +461,22 @@ select {
   min-width: 0; font-size: .92rem;
 }
 .search-box input::placeholder { color: var(--text-dim); }
+.search-submit {
+  min-width: 58px; height: 30px; padding: 0 13px; border: 0; border-radius: 999px;
+  background: #fff; color: #111; font-size: .8rem; font-weight: 750; cursor: pointer;
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  transition: background-color .16s ease-out, transform .12s ease-out, opacity .16s ease-out;
+}
+.search-submit:active:not(:disabled) { transform: scale(.96); }
+.search-submit:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.search-submit:disabled { cursor: wait; opacity: .72; }
+.search-submit-spinner {
+  display: none; width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,.2); border-top-color: #111;
+  animation: spin .7s linear infinite;
+}
+.search-submit.is-loading .search-submit-label { display: none; }
+.search-submit.is-loading .search-submit-spinner { display: block; }
 
 .source-bar {
   position: sticky; top: var(--topbar-h); z-index: 19;
@@ -608,7 +624,9 @@ select {
   transition: background .15s, transform .1s;
 }
 .btn-green:hover { background: var(--green-hover); transform: scale(1.03); }
-.btn-green:active { background: var(--green-press); transform: scale(1); }
+.btn-green:active { background: var(--green-press); transform: scale(.98); }
+.btn-green:disabled { cursor: wait; opacity: .72; transform: none; }
+.btn-ghost:disabled { opacity: .38; cursor: default; }
 .pill {
   display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px;
   font-size: .75rem; font-weight: 700; background: rgba(0,0,0,.35); color: #fff;
@@ -695,6 +713,7 @@ select {
 .empty-state {
   display: grid; place-items: center; text-align: center; gap: 6px; padding: 60px 20px; color: var(--text-sub);
 }
+.empty-state[hidden] { display: none !important; }
 .empty-icon {
   width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center;
   background: #282828; color: var(--text); font-size: 1.6rem; margin-bottom: 8px;
@@ -737,6 +756,7 @@ select {
   cursor: pointer; border-radius: 6px; max-width: 100%;
 }
 .player-open-detail:hover .player-title { text-decoration: underline; }
+.player-open-detail:disabled { cursor: default; opacity: .72; }
 .player-open-detail:hover .player-cover { transform: scale(1.04); }
 .player-open-detail .player-cover { transition: transform .15s ease; }
 .player-open-detail .open-chevron {
@@ -762,6 +782,7 @@ select {
   border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: color .12s, transform .1s;
 }
 .pbtn:hover { color: var(--text); }
+.pbtn:disabled { opacity: .32; cursor: default; transform: none !important; }
 .pbtn.play {
   width: 36px; height: 36px; background: #fff; color: #000;
   position: relative;
@@ -769,6 +790,13 @@ select {
   place-items: center;
 }
 .pbtn.play:hover { transform: scale(1.06); color: #000; background: #fff; }
+.pbtn.play.is-loading { position: relative; cursor: wait; }
+.pbtn.play.is-loading svg { opacity: 0 !important; }
+.pbtn.play.is-loading::after {
+  content: ''; position: absolute; width: 15px; height: 15px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,.2); border-top-color: #111;
+  animation: spin .7s linear infinite;
+}
 .pbtn.play .icon-play,
 .pbtn.play .icon-pause {
   grid-area: 1 / 1;
@@ -856,6 +884,9 @@ input[type="range"]:hover { background:
   background: #2e77d0; color: #fff; padding: 10px 18px; border-radius: 8px;
   font-size: .88rem; font-weight: 600; box-shadow: var(--shadow);
   max-width: min(90vw, 420px); text-align: center;
+}
+@media (hover: hover) and (pointer: fine) {
+  .search-submit:hover:not(:disabled) { background: #e9e9e9; }
 }
 .muted { color: var(--text-sub); }
 .center { text-align: center; }

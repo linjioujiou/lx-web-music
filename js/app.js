@@ -34,7 +34,7 @@ const QUALITY_LABELS = {
   '128k': '标准',
   '320k': '较高',
   flac: '无损',
-  flac24bit: 'Hi-Res',
+  flac24bit: '24-bit 无损',
   hires: 'Hi-Res',
   atmos: '全景声',
   atmos_plus: '全景声+',
@@ -77,6 +77,7 @@ const audio = $('#audio');
 const els = {
   form: $('#searchForm'),
   input: $('#searchInput'),
+  searchSubmit: $('#searchSubmit'),
   tabs: $('#sourceTabs'),
   songList: $('#songList'),
   empty: $('#emptyState'),
@@ -143,12 +144,16 @@ const els = {
 let toastTimer = null;
 let fluidBg = null;
 let qualityFallbackActive = false;
+let playbackBusy = false;
+let searchRequestId = 0;
+let playbackRequestId = 0;
+let cancelActivePlayback = null;
 
 function toast(msg, ms = 2600) {
   els.toast.textContent = msg;
   els.toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { els.toast.hidden = true; }, ms);
+  if (ms > 0) toastTimer = setTimeout(() => { els.toast.hidden = true; }, ms);
 }
 
 function formatTime(sec) {
@@ -312,6 +317,19 @@ function setLoading(on) {
   }
 }
 
+function setSearchBusy(on, keyword = '', source = state.source) {
+  setLoading(on);
+  els.form?.setAttribute('aria-busy', on ? 'true' : 'false');
+  if (els.searchSubmit) {
+    els.searchSubmit.disabled = on;
+    els.searchSubmit.classList.toggle('is-loading', on);
+    els.searchSubmit.setAttribute('aria-label', on ? '正在搜索' : '提交搜索');
+  }
+  if (on && els.resultsMeta) {
+    els.resultsMeta.textContent = `${SOURCE_LABELS[source] || source} · 正在搜索「${keyword}」`;
+  }
+}
+
 function applySourceHighlight(source) {
   const src = source || state.source || 'tx';
   const label = SOURCE_LABELS[src] || src;
@@ -359,6 +377,7 @@ function renderSongs() {
   els.songList.innerHTML = '';
   if (!list.length) {
     els.empty.hidden = false;
+    updatePlayUI();
     return;
   }
   els.empty.hidden = true;
@@ -396,10 +415,12 @@ function renderSongs() {
     frag.appendChild(item);
   });
   els.songList.appendChild(frag);
+  updatePlayUI();
 }
 
 function renderQueue() {
   if (els.queueCount) els.queueCount.textContent = String(state.queue.length);
+  if (els.clearQueue) els.clearQueue.disabled = state.queue.length === 0;
   els.queueList.innerHTML = '';
   if (!state.queue.length) {
     els.queueList.innerHTML = '<p class="muted center small" style="padding:16px">播放列表为空，去搜索加点歌吧</p>';
@@ -703,6 +724,8 @@ function removeFromQueue(index) {
   if (index < 0 || index >= state.queue.length) return;
   state.queue.splice(index, 1);
   if (!state.queue.length) {
+    cancelPendingPlayback();
+    setPlaybackBusy(false);
     state.currentIndex = -1;
     audio.pause();
     audio.removeAttribute('src');
@@ -737,12 +760,14 @@ function playResolvedUrl(url, timeoutMs = 15000) {
     : url;
   return new Promise((resolve, reject) => {
     let settled = false;
+    const cancel = () => finish(new DOMException('Playback superseded', 'AbortError'));
     const finish = (error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('error', onError);
+      if (cancelActivePlayback === cancel) cancelActivePlayback = null;
       if (error) reject(error);
       else resolve();
     };
@@ -752,15 +777,45 @@ function playResolvedUrl(url, timeoutMs = 15000) {
 
     audio.addEventListener('playing', onPlaying, { once: true });
     audio.addEventListener('error', onError, { once: true });
+    cancelActivePlayback = cancel;
     audio.src = playbackUrl;
     audio.load();
     audio.play().catch(finish);
   });
 }
 
-async function playCurrent() {
+function setPlaybackBusy(on, quality = '') {
+  playbackBusy = on;
+  const playerBar = document.getElementById('playerBar');
+  const heroPlay = document.getElementById('btnHeroPlay');
+  playerBar?.setAttribute('aria-busy', on ? 'true' : 'false');
+  els.btnPlay?.classList.toggle('is-loading', on);
+  if (els.btnPlay) els.btnPlay.disabled = on;
+  if (els.npBtnPlay) els.npBtnPlay.disabled = on;
+  if (heroPlay) {
+    heroPlay.disabled = on;
+    const text = heroPlay.querySelector('.hero-play-text');
+    if (on && text) text.textContent = quality ? `正在尝试 ${QUALITY_LABELS[quality] || quality}` : '正在解析';
+  }
+}
+
+function cancelPendingPlayback() {
+  playbackRequestId += 1;
+  qualityFallbackActive = false;
+  if (cancelActivePlayback) cancelActivePlayback();
+  cancelActivePlayback = null;
+}
+
+async function playCurrent(options = {}) {
   const song = state.queue[state.currentIndex];
   if (!song) return;
+  cancelPendingPlayback();
+  const requestId = playbackRequestId;
+  const resumeAt = Number(options.resumeAt) || 0;
+  const previousPlayback = options.preserveCurrentAudio && audio.src
+    ? { src: audio.currentSrc || audio.src, time: resumeAt, wasPlaying: !audio.paused }
+    : null;
+  if (!options.preserveCurrentAudio) audio.pause();
   updateNowPlaying(song);
   renderQueue();
   renderSongs();
@@ -774,18 +829,28 @@ async function playCurrent() {
   let lastError = null;
 
   qualityFallbackActive = true;
+  setPlaybackBusy(true);
   try {
     for (let index = 0; index < qualityCandidates.length; index += 1) {
+      if (requestId !== playbackRequestId) return;
       const quality = qualityCandidates[index];
-      toast('解析播放地址：' + song.title + ' · ' + (QUALITY_LABELS[quality] || quality), 1800);
+      setPlaybackBusy(true, quality);
+      toast('正在解析：' + song.title + ' · ' + (QUALITY_LABELS[quality] || quality), 0);
+      let candidateLoaded = false;
       try {
         const data = await apiUrl(song, quality);
+        if (requestId !== playbackRequestId) return;
         const actualQuality = data.quality || quality;
         const actualIndex = qualityCandidates.indexOf(actualQuality);
         if (actualIndex > index) index = actualIndex;
         if (!data.url || attemptedUrls.has(data.url)) continue;
         attemptedUrls.add(data.url);
+        candidateLoaded = true;
         await playResolvedUrl(data.url);
+        if (requestId !== playbackRequestId) return;
+        if (resumeAt > 0 && Number.isFinite(audio.duration)) {
+          audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 1));
+        }
 
         state.playing = true;
         updatePlayUI();
@@ -799,19 +864,41 @@ async function playCurrent() {
         apiLyric(song).then(renderLyrics);
         return;
       } catch (error) {
+        if (error?.name === 'AbortError' || requestId !== playbackRequestId) return;
         lastError = error;
         console.warn('音质播放失败，尝试降级：', quality, error);
-        audio.pause();
-        audio.removeAttribute('src');
-        audio.load();
+        if (candidateLoaded || !previousPlayback) {
+          audio.pause();
+          audio.removeAttribute('src');
+          audio.load();
+        }
       }
+    }
+
+    if (previousPlayback) {
+      audio.src = previousPlayback.src;
+      audio.load();
+      const restoreTime = () => {
+        if (Number.isFinite(audio.duration)) {
+          audio.currentTime = Math.min(previousPlayback.time, Math.max(0, audio.duration - 1));
+        }
+      };
+      audio.addEventListener('loadedmetadata', restoreTime, { once: true });
+      if (previousPlayback.wasPlaying) await audio.play().catch(() => {});
+      updatePlayUI();
+      toast('该音质不可用，已继续使用当前播放音质');
+      return;
     }
 
     state.playing = false;
     updatePlayUI();
     toast('所有音质均播放失败：' + (lastError?.message || '未知错误'));
   } finally {
-    qualityFallbackActive = false;
+    if (requestId === playbackRequestId) {
+      qualityFallbackActive = false;
+      setPlaybackBusy(false);
+      updatePlayUI();
+    }
   }
 }
 
@@ -842,13 +929,35 @@ function updatePlayUI() {
   if (els.vinyl) els.vinyl.classList.toggle('playing', playing);
   if (els.miniEq) els.miniEq.classList.toggle('on', playing);
 
+  const hasQueue = state.queue.length > 0;
+  const hasCurrent = Boolean(state.queue[state.currentIndex]);
   const heroPlay = document.getElementById('btnHeroPlay');
   setIconPair(heroPlay, '.hero-play', '.hero-pause');
   if (heroPlay) {
     const text = heroPlay.querySelector('.hero-play-text');
-    if (text) text.textContent = playing ? '暂停' : '播放';
+    const emptyAction = state.songs.length ? '播放第一首' : '搜索歌曲';
+    if (text && !playbackBusy) text.textContent = hasCurrent ? (playing ? '暂停' : '播放') : emptyAction;
+    if (!hasCurrent && !playbackBusy) {
+      heroPlay.setAttribute('aria-label', emptyAction);
+      heroPlay.setAttribute('title', emptyAction);
+    } else if (!playbackBusy) {
+      heroPlay.setAttribute('aria-label', playing ? '暂停' : '播放');
+      heroPlay.setAttribute('title', playing ? '暂停' : '播放');
+    }
   }
   if (fluidBg) fluidBg.setPlaying(playing);
+
+  if (els.btnPlay) els.btnPlay.disabled = playbackBusy || !hasCurrent;
+  if (els.btnPrev) els.btnPrev.disabled = !hasQueue;
+  if (els.btnNext) els.btnNext.disabled = !hasQueue;
+  if (els.btnMode) els.btnMode.disabled = !hasQueue;
+  if (els.npBtnPrev) els.npBtnPrev.disabled = !hasQueue;
+  if (els.npBtnNext) els.npBtnNext.disabled = !hasQueue;
+  if (els.npBtnMode) els.npBtnMode.disabled = !hasQueue;
+  if (els.npBtnPlay) els.npBtnPlay.disabled = playbackBusy || !hasCurrent;
+  if (els.btnOpenDetail) els.btnOpenDetail.disabled = !hasCurrent;
+  if (els.seekBar) els.seekBar.disabled = !audio.src;
+  if (heroPlay) heroPlay.disabled = playbackBusy;
 }
 
 function nextIndex() {
@@ -1104,34 +1213,47 @@ function setupNpVolumePopover() {
 
 async function doSearch(keyword) {
   const q = keyword.trim();
-  if (!q) return;
-  setLoading(true);
+  if (!q) {
+    els.input?.focus();
+    return;
+  }
+  const requestSource = state.source;
+  const requestId = ++searchRequestId;
+  setSearchBusy(true, q, requestSource);
   els.empty.hidden = true;
   try {
-    const data = await apiSearch(q, state.source);
+    const data = await apiSearch(q, requestSource);
+    if (requestId !== searchRequestId) return;
     state.songs = data.songs || [];
     els.resultsTitle.textContent = '搜索结果';
-    els.resultsMeta.textContent = (data.sourceLabel || SOURCE_LABELS[state.source]) + ' ·「' + q + '」· ' + state.songs.length + ' 首';
-    applySourceHighlight(state.source);
+    els.resultsMeta.textContent = (data.sourceLabel || SOURCE_LABELS[requestSource]) + ' ·「' + q + '」· ' + state.songs.length + ' 首';
+    applySourceHighlight(requestSource);
     if (els.sourceHint) {
-      const resultLabel = data.sourceLabel || SOURCE_LABELS[state.source] || state.source;
+      const resultLabel = data.sourceLabel || SOURCE_LABELS[requestSource] || requestSource;
       els.sourceHint.textContent = '当前：' + String(resultLabel).replace(/音乐/g, '') + ' · 共 ' + (state.songs.length || 0) + ' 首';
     }
     renderSongs();
     if (!state.songs.length) {
       els.empty.hidden = false;
       const h = els.empty.querySelector('h3');
+      const p = els.empty.querySelector('p');
       if (h) h.textContent = '没有找到相关歌曲';
+      if (p) p.textContent = '换个关键词，或切换其他音乐平台试试。';
+      els.resultsMeta.textContent = `${data.sourceLabel || SOURCE_LABELS[requestSource]} ·「${q}」· 暂无结果`;
     }
   } catch (err) {
+    if (requestId !== searchRequestId) return;
     toast(err.message || '搜索失败');
     state.songs = [];
     renderSongs();
     els.empty.hidden = false;
     const h = els.empty.querySelector('h3');
+    const p = els.empty.querySelector('p');
     if (h) h.textContent = '搜索失败，请稍后重试';
+    if (p) p.textContent = '可以重试，或切换其他音乐平台。';
+    els.resultsMeta.textContent = `${SOURCE_LABELS[requestSource] || requestSource} ·「${q}」· 搜索失败`;
   } finally {
-    setLoading(false);
+    if (requestId === searchRequestId) setSearchBusy(false);
   }
 }
 
@@ -1208,7 +1330,7 @@ function bindEvents() {
     state.source = next;
     renderQualityOptions(next);
     applySourceHighlight(next);
-    toast('已切换到 ' + (SOURCE_LABELS[next] || next), 1600);
+    toast('已切换到 ' + (SOURCE_LABELS[next] || next), 1200);
     if (els.input.value.trim()) doSearch(els.input.value);
   });
 
@@ -1242,6 +1364,8 @@ function bindEvents() {
   els.btnMode.addEventListener('click', cycleMode);
 
   els.clearQueue.addEventListener('click', () => {
+    cancelPendingPlayback();
+    setPlaybackBusy(false);
     state.queue = [];
     state.currentIndex = -1;
     audio.pause();
@@ -1282,7 +1406,15 @@ function bindEvents() {
   els.qualitySelect.addEventListener('change', () => {
     state.quality = els.qualitySelect.value;
     localStorage.setItem(QUALITY_KEY, state.quality);
-    toast('音质已切换为 ' + state.quality + '（下一首生效）');
+    const label = QUALITY_LABELS[state.quality] || state.quality;
+    const currentSong = state.queue[state.currentIndex];
+    if (currentSong && audio.src) {
+      const resumeAt = audio.currentTime || 0;
+      toast('正在切换到 ' + label, 0);
+      playCurrent({ resumeAt, preserveCurrentAudio: true });
+    } else {
+      toast('默认音质已设为 ' + label);
+    }
   });
 
   audio.addEventListener('timeupdate', () => {
@@ -1435,7 +1567,7 @@ function renderQualityOptions(source) {
   const list = PLATFORM_QUALITY[src] || ['128k', '320k', 'flac'];
   const prev = state.quality || '320k';
   els.qualitySelect.innerHTML = list
-    .map((q) => '<option value="' + q + '">' + (QUALITY_LABELS[q] || q) + '</option>')
+    .map((q) => '<option value="' + q + '">' + (QUALITY_LABELS[q] || q) + ' · ' + q + '</option>')
     .join('');
   const keep = list.includes(prev) ? prev : (list.includes('320k') ? '320k' : list[list.length - 1]);
   state.quality = keep;

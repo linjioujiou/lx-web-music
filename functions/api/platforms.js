@@ -23,7 +23,7 @@ const QUALITY_LABELS = {
   '128k': '标准',
   '320k': '较高',
   flac: '无损',
-  flac24bit: 'Hi-Res',
+  flac24bit: '24-bit 无损',
   hires: 'Hi-Res',
   atmos: '全景声',
   atmos_plus: '全景声+',
