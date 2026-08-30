@@ -1,6 +1,6 @@
 /**
  * LX Web — online music player
- * Search via /api/search, play URL via /api/url (lx-music-source backends)
+ * Search via /api/search, play URL via the lx-music-desktop user-source contract.
  */
 
 import { createFluidBackground } from './fluid-bg.js?v=mode-icon1';
@@ -15,13 +15,13 @@ const PLACEHOLDER_COVER =
 const STORAGE_KEY = 'lx-web-queue-v1';
 const QUALITY_KEY = 'lx-web-quality';
 const VOLUME_KEY = 'lx-web-volume';
+const SUPPORTED_SOURCES = new Set(['wy', 'tx', 'kw', 'kg']);
 
 const SOURCE_LABELS = {
   wy: '网易云音乐',
   tx: 'QQ音乐',
   kw: '酷我音乐',
   kg: '酷狗音乐',
-  mg: '咪咕音乐',
 };
 // 各平台可用音质（启动时从 /api/platforms 拉取，未拉取到则用兜底）
 let PLATFORM_QUALITY = {
@@ -29,7 +29,6 @@ let PLATFORM_QUALITY = {
   tx: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'atmos_plus', 'master'],
   kg: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'master'],
   kw: ['128k', '320k', 'flac', 'flac24bit', 'hires'],
-  mg: ['128k', '320k', 'flac'],
 };
 const QUALITY_LABELS = {
   '128k': '标准',
@@ -184,8 +183,15 @@ function loadQueue() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    if (Array.isArray(data.queue)) state.queue = data.queue;
-    if (typeof data.currentIndex === "number") state.currentIndex = data.currentIndex;
+    if (Array.isArray(data.queue)) {
+      state.queue = data.queue.filter((song) => SUPPORTED_SOURCES.has(song?.source));
+    }
+    if (typeof data.currentIndex === 'number' && state.queue.length) {
+      state.currentIndex = Math.min(Math.max(data.currentIndex, 0), state.queue.length - 1);
+    } else if (!state.queue.length) {
+      state.currentIndex = -1;
+    }
+    saveQueue();
   } catch {}
 }
 
@@ -220,22 +226,25 @@ async function apiSearch(keyword, source) {
 async function apiUrl(song, quality) {
   const id = playIdOf(song);
   const q = quality || state.quality;
-  // 构造洛雪风格 source_data，透传 types 让后端做音质智能降级
+  // 与 lx-music-desktop 的 sendUserApiRequest 数据结构保持一致。
   const songInfo = {
     name: song.title || '',
     singer: song.artist || '',
     album: song.album || '',
     musicId: id,
-    songmid: song.source === 'kg' ? '' : (song.songmid || id),
-    hash: song.hash || '',
+    songmid: song.songmid || id,
     img: song.artwork || '',
-    duration: song.duration || 0,
+    interval: song.duration || 0,
   };
+  if (song.hash) songInfo.hash = song.hash;
   if (Array.isArray(song.types) && song.types.length) songInfo.types = song.types;
   const body = {
-    source_data: { platform: song.source, quality: q, songInfo },
-    quality: q,
-    fallback: { enabled: true, title: song.title, artist: song.artist },
+    requestKey: 'request__' + Math.random().toString().slice(2),
+    data: {
+      source: song.source,
+      action: 'musicUrl',
+      info: { type: q, musicInfo },
+    },
   };
   const res = await fetch('/api/url', {
     method: 'POST',
@@ -243,10 +252,16 @@ async function apiUrl(song, quality) {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok || data.code !== 0 || !data.url) {
-    throw new Error(data.errors?.join('; ') || data.message || '无法获取播放地址');
+  const result = data?.result?.data;
+  if (!res.ok || data.code !== 0 || !result?.url) {
+    throw new Error(data.message || '无法获取播放地址');
   }
-  return data;
+  return {
+    url: result.url,
+    quality: result.type || q,
+    provider: 'ikun · 桌面音源',
+    source: data.result.source || song.source,
+  };
 }
 
 async function apiLyric(song) {
@@ -292,7 +307,7 @@ function setLoading(on) {
 function applySourceHighlight(source) {
   const src = source || state.source || 'tx';
   const label = SOURCE_LABELS[src] || src;
-  const classes = ['src-wy', 'src-tx', 'src-kw', 'src-kg', 'src-mg'];
+  const classes = ['src-wy', 'src-tx', 'src-kw', 'src-kg'];
   const setClass = (el) => {
     if (!el || !el.classList) return;
     classes.forEach((c) => el.classList.remove(c));

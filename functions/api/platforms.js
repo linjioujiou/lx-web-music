@@ -1,6 +1,6 @@
 /**
  * Cloudflare Pages Function: /api/platforms
- * 返回各音乐平台支持的全部音质映射（来自 ikun 赞助音源脚本 MUSIC_QUALITY）
+ * 返回桌面自定义音源脚本通过 inited.sources 声明的平台与音质。
  * 前端据此动态渲染当前平台的音质选项。
  */
 
@@ -10,7 +10,6 @@ const PLATFORM_QUALITY = {
   tx: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'atmos_plus', 'master'],
   kg: ['128k', '320k', 'flac', 'flac24bit', 'hires', 'atmos', 'master'],
   kw: ['128k', '320k', 'flac', 'flac24bit', 'hires'],
-  mg: ['128k', '320k', 'flac'],
 };
 
 const SOURCE_LABELS = {
@@ -18,7 +17,6 @@ const SOURCE_LABELS = {
   tx: 'QQ音乐',
   kw: '酷我音乐',
   kg: '酷狗音乐',
-  mg: '咪咕音乐',
 };
 
 const QUALITY_LABELS = {
@@ -32,7 +30,7 @@ const QUALITY_LABELS = {
   master: '母带',
 };
 
-const ORDER = ['wy', 'tx', 'kw', 'kg', 'mg'];
+const ORDER = ['wy', 'tx', 'kw', 'kg'];
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {

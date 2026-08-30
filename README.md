@@ -1,15 +1,15 @@
 # LX Web · 在线音乐播放器
 
-可部署到 **Cloudflare Pages** 的网页端音乐播放器，播放链接解析对接 [pdone/lx-music-source](https://github.com/pdone/lx-music-source) 生态中的音源接口（Huibq 主解析 + ikun 备用）。
+可部署到 **Cloudflare Pages** 的网页端音乐播放器。播放链接使用 `lx-music-desktop` 自定义音源的 `request / musicUrl` 协议，并接入 ikun 桌面音源。
 
 > 仅供在线试听学习交流，请勿用于批量下载或商业用途；请遵守各音乐平台与音源服务条款，控制请求频率。
 
 ## 功能
 
-- 多音源搜索：网易云 / QQ 音乐 / 酷我 / 酷狗 / 咪咕
-- 播放地址解析：优先 `lxmusicapi.onrender.com`（Huibq），失败回退 `api.ikunshare.com`（ikun）
+- 多平台搜索：网易云 / QQ 音乐 / 酷我 / 酷狗
+- 播放地址解析：使用 ikun 桌面音源脚本声明的平台、动作和音质
 - 播放列表（localStorage 持久化）、上一曲/下一曲、顺序/循环/单曲/随机
-- 音质选择（128k / 320k / 无损），按歌曲可用音质智能降级
+- 展示音源声明的全部音质，播放失败时自动逐级降级
 - 歌词展示（网易云 / QQ / 酷我，尽力而为）
 - 响应式深色 UI，支持 Media Session（部分浏览器锁屏控制）
 
@@ -18,11 +18,11 @@
 ```
 浏览器
   ├─ 搜索  → /api/search  (Pages Function 代理各平台公开搜索 API)
-  ├─ 取链  → /api/url     (Pages Function → Huibq / ikun，对应 lx-music-source)
+  ├─ 取链  → /api/url     (Pages Function → 桌面音源 request/musicUrl 协议)
   └─ 歌词  → /api/lyric   (Pages Function 代理歌词 API)
 ```
 
-音源约定与洛雪源脚本一致：播放 ID 使用 `hash ?? songmid`，平台代码 `wy` / `tx` / `kw` / `kg` / `mg`。
+音源约定与洛雪桌面版一致：播放 ID 使用 `hash ?? songmid`，平台代码为 `wy` / `tx` / `kw` / `kg`。
 
 ## 目录结构
 
@@ -34,7 +34,7 @@
 ├── functions/
 │   └── api/
 │       ├── search.js   # GET /api/search?q=&source=&limit=
-│       ├── url.js      # 解析播放地址（POST source_data / GET 兼容）
+│       ├── url.js      # 桌面音源 request/musicUrl 兼容层
 │       └── lyric.js    # GET /api/lyric?source=&id=
 ├── _headers
 ├── package.json
@@ -88,47 +88,40 @@ Dashboard → Pages → Create → **Upload assets**，上传整个项目目录�
 | 参数 | 说明 |
 |------|------|
 | `q` | 关键词（必填） |
-| `source` | `wy` `tx` `kw` `kg` `mg` |
+| `source` | `wy` `tx` `kw` `kg` |
 | `limit` | 1–50，默认 20 |
 
-### `POST /api/url`（推荐，洛雪风格）
+### `POST /api/url`（洛雪桌面版音源协议）
 
 Body JSON：
 
 ```json
 {
-  "source_data": {
-    "platform": "wy",
-    "quality": "320k",
-    "songInfo": { "musicId": "123", "name": "...", "types": [{"type":"128k"}, {"type":"320k"}] }
-  },
-  "quality": "320k",
-  "fallback": { "enabled": true, "title": "...", "artist": "..." }
+  "requestKey": "request__123",
+  "data": {
+    "source": "wy",
+    "action": "musicUrl",
+    "info": {
+      "type": "320k",
+      "musicInfo": { "songmid": "123", "name": "...", "singer": "..." }
+    }
+  }
 }
 ```
 
-后端会从 `songInfo.types` 提取可用音质，按等级 128k=10 → 320k=30 → flac=50 → flac24bit=70 → master=80 选择不超过期望上限的最高音质。
-
-### `GET /api/url`（兼容旧前端）
-
-| 参数 | 说明 |
-|------|------|
-| 'source' | 音源代码 |
-| 'id' / 'songmid' / 'hash' | 歌曲标识 |
-| 'quality' | '128k' / '320k' / 'flac' 等 |
-| 'types' | 可选，逗号分隔的可用音质 |
+每次请求只解析指定音质。浏览器若无法播放该 URL，会按照当前平台的音质列表逐级降低并重新发送请求。
 
 返回示例：
 
 ```json
 {
   "code": 0,
-  "url": "https://...",
-  "quality": "320k",
-  "provider": "huibq",
-  "source": "wy",
-  "songId": "123",
-  "sourceId": ""
+  "requestKey": "request__123",
+  "result": {
+    "source": "wy",
+    "action": "musicUrl",
+    "data": { "type": "320k", "url": "https://..." }
+  }
 }
 ```
 ### `GET /api/lyric`
@@ -140,15 +133,14 @@ Body JSON：
 
 ## 注意事项
 
-1. **第三方音源可用性**：Huibq 部署在 Render 上，可能有冷启动或限流；ikun 为备用。若均失败，页面会提示解析错误。
+1. **第三方音源可用性**：ikun 音源可能限流或临时失效；指定音质失败时页面会自动尝试更低音质。
 2. **CORS / 防盗链**：播放地址由第三方 CDN 提供，极少数链接可能因防盗链无法在浏览器直接播放。
 3. **合规**：本项目不托管音乐文件，仅做检索与链接解析的前端演示；请合理使用，勿高频爬取。
-4. **自定义解析接口**：若你部署了洛雪音源插件，可设置 `functions/api/url.js` 顶部的 `LX_API_BASE` 指向其 HTTP 接口（POST source_data）；也可修改 `HUIBQ_BASE` / `HUIBQ_KEY` 调整 fallback 后端。
+4. **更换桌面音源**：需要同步修改 `functions/api/url.js` 的请求实现，以及 `functions/api/platforms.js` 中音源 `inited.sources` 声明的平台和音质。
 
 ## 相关链接
 
-- [pdone/lx-music-source](https://github.com/pdone/lx-music-source)
-- [Huibq/keep-alive](https://github.com/Huibq/keep-alive)
+- [lx-music-desktop](https://github.com/lyswhut/lx-music-desktop)
 - [Cloudflare Pages 文档](https://developers.cloudflare.com/pages/)
 
 ## License

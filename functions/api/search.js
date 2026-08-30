@@ -1,7 +1,7 @@
 /**
  * Cloudflare Pages Function: /api/search
- * Proxies multi-source music search (wy / tx / kw / kg / mg)
- * Query: ?q=keyword&source=wy|tx|kw|kg|mg&limit=20
+ * Proxies music search for platforms exposed by the desktop source.
+ * Query: ?q=keyword&source=wy|tx|kw|kg&limit=20
  */
 
 const SOURCE_LABELS = {
@@ -9,7 +9,6 @@ const SOURCE_LABELS = {
   tx: 'QQ音乐',
   kw: '酷我音乐',
   kg: '酷狗音乐',
-  mg: '咪咕音乐',
 };
 
 const UA =
@@ -279,7 +278,6 @@ const SEARCHERS = {
   tx: searchTx,
   kw: searchKw,
   kg: searchKg,
-  mg: searchMg,
 };
 
 export async function onRequest(context) {
