@@ -108,18 +108,20 @@ export async function onRequest(context) {
     return json({ code: 400, message: '无效的 JSON body' }, 400);
   }
 
-  const { requestKey, source, action, type, musicInfo } = parseDesktopRequest(body);
+  const desktopRequest = parseDesktopRequest(body);
+  const { requestKey, source, action, type } = desktopRequest;
+  const songInfo = desktopRequest.musicInfo;
   if (action !== 'musicUrl') return json({ code: 400, message: 'action not support' }, 400);
   if (!SOURCE_QUALITIES[source]) return json({ code: 400, message: `音源不支持平台：${source}` }, 400);
   if (!SOURCE_QUALITIES[source].includes(type)) {
     return json({ code: 400, message: `${source} 不支持音质：${type}` }, 400);
   }
-  if (!musicInfo || typeof musicInfo !== 'object') {
+  if (!songInfo || typeof songInfo !== 'object') {
     return json({ code: 400, message: '缺少 info.musicInfo' }, 400);
   }
 
   try {
-    const url = await requestMusicUrl(source, musicInfo, type);
+    const url = await requestMusicUrl(source, songInfo, type);
     return json({
       code: 0,
       requestKey,

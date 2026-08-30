@@ -223,11 +223,9 @@ async function apiSearch(keyword, source) {
   return data;
 }
 
-async function apiUrl(song, quality) {
+function buildDesktopMusicInfo(song) {
   const id = playIdOf(song);
-  const q = quality || state.quality;
-  // 与 lx-music-desktop 的 sendUserApiRequest 数据结构保持一致。
-  const songInfo = {
+  const desktopMusicInfo = {
     name: song.title || '',
     singer: song.artist || '',
     album: song.album || '',
@@ -236,20 +234,30 @@ async function apiUrl(song, quality) {
     img: song.artwork || '',
     interval: song.duration || 0,
   };
-  if (song.hash) songInfo.hash = song.hash;
-  if (Array.isArray(song.types) && song.types.length) songInfo.types = song.types;
+  if (song.hash) desktopMusicInfo.hash = song.hash;
+  if (Array.isArray(song.types) && song.types.length) desktopMusicInfo.types = song.types;
+  return desktopMusicInfo;
+}
+
+async function apiUrl(song, quality) {
+  const q = quality || state.quality;
+  // 与 lx-music-desktop 的 sendUserApiRequest 数据结构保持一致。
   const body = {
     requestKey: 'request__' + Math.random().toString().slice(2),
     data: {
       source: song.source,
       action: 'musicUrl',
-      info: { type: q, musicInfo },
+      info: {
+        type: q,
+        musicInfo: buildDesktopMusicInfo(song),
+      },
     },
   };
   const res = await fetch('/api/url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    cache: 'no-store',
   });
   const data = await res.json();
   const result = data?.result?.data;
