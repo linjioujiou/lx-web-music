@@ -1547,7 +1547,7 @@ function bindEvents() {
 // 拉取各平台音质映射；失败时沿用内置兜底 PLATFORM_QUALITY
 async function loadPlatforms() {
   try {
-    const res = await fetch('/api/platforms');
+    const res = await fetch('/api/platforms?v=interaction-polish2', { cache: 'no-store' });
     const data = await res.json();
     if (data && data.code === 0 && Array.isArray(data.platforms)) {
       const map = {};
